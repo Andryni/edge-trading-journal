@@ -1,0 +1,5 @@
+enteredAt,exitedAt,instrument,direction,entry,stop,target,exit,quantity,fees,setup,session,timeframe,notes
+2026-11-12T14:35:00Z,2026-11-12T14:41:00Z,MNQ,LONG,21400,21390,21425,21420,1,1.2,Absorption CSV,New York open,M1,Exemple synthetique
+2026-11-12T14:35:00Z,2026-11-12T14:41:00Z,MNQ,LONG,21400,21390,21425,21420,1,1.2,Absorption CSV,New York open,M1,Doublon intentionnel
+2026-11-12T15:15:00Z,2026-11-12T15:22:00Z,MES,SHORT,5900,5904,5892,5904,1,1.2,Continuation CSV,New York open,M5,Perte synthetique
+2026-11-12T15:35:00Z,2026-11-12T15:42:00Z,NQ,LONG,,21390,21425,21420,1,4.8,Import invalide,New York open,M1,Entree manquante intentionnelle

@@ -1,0 +1,39 @@
+{
+  "name": "edge-cockpit",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/web",
+    "packages/core"
+  ],
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "build": "npm run build -w @edge/web",
+    "start": "npm run start -w @edge/web",
+    "test": "vitest run",
+    "typecheck": "tsc -p apps/web/tsconfig.json --noEmit",
+    "db:generate": "prisma generate",
+    "db:migrate": "node scripts/migrate.mjs",
+    "db:seed": "node --import tsx prisma/seed.ts",
+    "db:studio": "prisma studio",
+    "setup": "node scripts/setup.mjs",
+    "test:integration": "node --import tsx scripts/integration.mts",
+    "check": "npm test && npm run typecheck && npm run test:integration"
+  },
+  "devDependencies": {
+    "prisma": "6.19.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0",
+    "vitest": "^3.2.0",
+    "@types/node": "^22.0.0"
+  },
+  "dependencies": {
+    "@prisma/client": "6.19.0"
+  },
+  "prisma": {
+    "seed": "node --import tsx prisma/seed.ts"
+  },
+  "engines": {
+    "node": ">=22.12"
+  }
+}

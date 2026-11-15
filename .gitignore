@@ -1,0 +1,23 @@
+node_modules/
+.next/
+.expo/
+.env
+*.db
+*.db-journal
+*.tsbuildinfo
+coverage/
+.env.local
+.env.*.local
+.env.*
+!.env.example
+*.log
+Stitch MCP.txt
+supabase/.temp/
+next-env.d.ts
+dist/
+output/
+tmp/
+backups/
+.vercel/
+scripts/.generated-*
+apps/web/.next-*/

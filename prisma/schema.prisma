@@ -1,0 +1,214 @@
+generator client {
+ provider = "prisma-client-js"
+}
+datasource db {
+ provider = "sqlite"
+ url = env("DATABASE_URL")
+}
+model User {
+ id String @id @default(cuid())
+ email String @unique
+ passwordHash String?
+ locale String @default("fr")
+ timezone String @default("America/New_York")
+ createdAt DateTime @default(now())
+ sessions AuthSession[]
+ document JournalDocument?
+ accounts Account[]
+ setups Setup[]
+ confluences Confluence[]
+ plans SessionPlan[]
+ reviews SessionReview[]
+ goals Goal[]
+ messages CoachMessage[]
+}
+model Account {
+ id String @id @default(cuid())
+ userId String
+ user User @relation(fields:[userId], references:[id], onDelete:Cascade)
+ name String
+ provider String
+ currency String @default("USD")
+ initialCapital Float
+ profitTarget Float
+ drawdownMode String @default("STATIC")
+ maxDrawdown Float
+ dailyLossLimit Float
+ consistencyLimit Float
+ minTradingDays Int @default(5)
+ maxContracts Int @default(3)
+ highWaterMark Float
+ createdAt DateTime @default(now())
+ trades Trade[]
+ lockRules LockRule[]
+ imports ImportBatch[]
+}
+model Trade {
+ id String @id @default(cuid())
+ accountId String
+ account Account @relation(fields:[accountId], references:[id], onDelete:Cascade)
+ setupId String?
+ setup Setup? @relation(fields:[setupId], references:[id], onDelete:SetNull)
+ importBatchId String?
+ importBatch ImportBatch? @relation(fields:[importBatchId], references:[id], onDelete:SetNull)
+ sourceKey String?
+ enteredAt DateTime
+ exitedAt DateTime?
+ analysisTimezone String @default("America/New_York")
+ instrument String
+ direction String
+ entry Float
+ stop Float
+ target Float
+ exit Float?
+ quantity Float
+ fees Float @default(0)
+ tickSize Float
+ tickValue Float
+ session String
+ timeframe String
+ quality String
+ planScore Int
+ notes String @default("")
+ didWell String @default("")
+ didWrong String @default("")
+ lesson String @default("")
+ mfeR Float?
+ maeR Float?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ tags TradeTag[]
+ confluences TradeConfluence[]
+ screenshots Screenshot[]
+ mentalStates MentalState[]
+ @@unique([accountId, sourceKey])
+ @@index([accountId, enteredAt])
+}
+model Setup {
+ id String @id @default(cuid())
+ userId String
+ user User @relation(fields:[userId], references:[id], onDelete:Cascade)
+ name String
+ entryRules String @default("")
+ invalidation String @default("")
+ trades Trade[]
+ @@unique([userId,name])
+}
+model TradeTag {
+ id String @id @default(cuid())
+ tradeId String
+ trade Trade @relation(fields:[tradeId], references:[id], onDelete:Cascade)
+ label String
+ @@unique([tradeId,label])
+}
+model Confluence {
+ id String @id @default(cuid())
+ userId String
+ user User @relation(fields:[userId], references:[id], onDelete:Cascade)
+ name String
+ trades TradeConfluence[]
+ @@unique([userId,name])
+}
+model TradeConfluence {
+ tradeId String
+ confluenceId String
+ trade Trade @relation(fields:[tradeId],references:[id],onDelete:Cascade)
+ confluence Confluence @relation(fields:[confluenceId],references:[id],onDelete:Cascade)
+ @@id([tradeId,confluenceId])
+}
+model Screenshot {
+ id String @id @default(cuid())
+ tradeId String
+ trade Trade @relation(fields:[tradeId],references:[id],onDelete:Cascade)
+ phase String
+ localPath String
+ annotationsJson String @default("[]")
+ createdAt DateTime @default(now())
+}
+model MentalState {
+ id String @id @default(cuid())
+ tradeId String
+ trade Trade @relation(fields:[tradeId],references:[id],onDelete:Cascade)
+ phase String
+ emotion String
+ energy Int
+ stress Int
+ sleepHours Float?
+ @@unique([tradeId,phase])
+}
+model SessionPlan {
+ id String @id @default(cuid())
+ userId String
+ user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+ localDate String
+ checklistJson String
+ keyLevels String
+ allowedSetupsJson String
+ maxTrades Int
+ validatedAt DateTime?
+ @@unique([userId,localDate])
+}
+model SessionReview {
+ id String @id @default(cuid())
+ userId String
+ user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+ localDate String
+ planScore Int
+ bestTradeId String?
+ worstMistake String
+ tomorrowAction String
+ @@unique([userId,localDate])
+}
+model Goal {
+ id String @id @default(cuid())
+ userId String
+ user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+ label String
+ unit String
+ target Float
+ startsAt DateTime
+ endsAt DateTime
+}
+model LockRule {
+ id String @id @default(cuid())
+ accountId String
+ account Account @relation(fields:[accountId],references:[id],onDelete:Cascade)
+ dailyLossLimit Float
+ maxTrades Int
+ maxConsecutiveLosses Int
+ cutoffNy String
+ cooldownMinutes Int @default(30)
+ enabled Boolean @default(true)
+}
+model ImportBatch {
+ id String @id @default(cuid())
+ accountId String
+ account Account @relation(fields:[accountId],references:[id],onDelete:Cascade)
+ filename String
+ source String
+ columnMappingJson String
+ createdAt DateTime @default(now())
+ trades Trade[]
+}
+model CoachMessage {
+ id String @id @default(cuid())
+ userId String
+ user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+ role String
+ content String
+ model String?
+ createdAt DateTime @default(now())
+}
+model AuthSession {
+ id String @id
+ userId String
+ user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+ expiresAt DateTime
+}
+model JournalDocument {
+ userId String @id
+ user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+ revision Int @default(0)
+ data String
+ updatedAt DateTime @updatedAt
+}

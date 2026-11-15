@@ -1,0 +1,38 @@
+{
+  "url": "https://edge-cockpit-rqcjmvmy0-andrys-projects-10d15f93.vercel.app",
+  "checks": [
+    "health: Supabase OK",
+    "private APIs reject unauthenticated access",
+    "EDGE logo renders on login",
+    "browser login renders cockpit and EDGE logo",
+    "fonts loaded from the deployment, no Google requests",
+    {
+      "sync": {
+        "revision": 9,
+        "next": 10,
+        "conflict": true,
+        "conflictError": "",
+        "versions": 9,
+        "history": "Compte de recette Vercel",
+        "image": "/api/attachments",
+        "imageStatus": 200,
+        "bytes": 68,
+        "account": "Compte de recette Vercel",
+        "trades": 1
+      }
+    },
+    "session and synchronized journal survive reload",
+    "all 14 application screens render",
+    {
+      "mobile": {
+        "viewport": 390,
+        "page": 390
+      }
+    },
+    "logout invalidates browser session"
+  ],
+  "errors": [],
+  "startedAt": "2026-11-15T09:10:31.375Z",
+  "success": true,
+  "finishedAt": "2026-11-15T09:10:44.358Z"
+}
