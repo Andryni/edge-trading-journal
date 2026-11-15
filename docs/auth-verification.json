@@ -1,0 +1,17 @@
+{
+  "url": "https://edge-cockpit-c744fojnr-andrys-projects-10d15f93.vercel.app",
+  "checks": [
+    "public deployment responds; private journal requires login",
+    "missing password rejected before auth service",
+    "3D chart animates and pause/resume works",
+    "signup catches mismatched passwords",
+    "signup confirmation is a success screen and does not create a session (email transport mocked; no mail sent)",
+    "real Supabase login opens private cockpit without local branding",
+    "confirmation returns to EDGE, removes fragment tokens and asks for password login",
+    "expired email link returns to actionable French feedback",
+    "login and signup fit 390px without horizontal scrolling",
+    "reduced motion preference disables decorative animations"
+  ],
+  "errors": [],
+  "success": true
+}

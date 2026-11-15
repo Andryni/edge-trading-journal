@@ -3,6 +3,7 @@ import "./globals.css";
 import "./cockpit.css";
 import "./product.css";
 import "./studio.css";
+import "./auth.css";
 export const metadata: Metadata = {
   manifest: "/manifest.webmanifest",
   title: "EDGE / Cockpit de trading",

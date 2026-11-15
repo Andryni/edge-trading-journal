@@ -18,7 +18,7 @@ type State = {
   conflict: Saved | null;
   sequence: number;
   boot: () => Promise<void>;
-  login: (email: string, password: string, register: boolean) => Promise<void>;
+  login: (email: string, password: string, register: boolean) => Promise<{confirmationRequired:boolean}>;
   logout: () => Promise<void>;
   update: (fn: (j: Journal) => void) => void;
   sync: () => Promise<void>;
@@ -68,7 +68,7 @@ function persist() {
     .catch(() => {
       useApp.setState({
         error:
-          "Impossible d’écrire dans le stockage local. Exporte une sauvegarde avant de fermer.",
+          "Impossible d’enregistrer sur cet appareil. Exporte une sauvegarde avant de fermer.",
       });
     });
 }
@@ -93,7 +93,7 @@ async function load(user: User) {
       status:
         local.revision !== remote.revision
           ? "Conflit à résoudre"
-          : "Modifications locales en attente",
+          : "Modifications sur cet appareil en attente",
     });
   } else {
     useApp.setState({
@@ -145,12 +145,12 @@ const buildStore = () =>
             revision: saved.revision,
             dirty: saved.dirty,
             loaded: true,
-            status: "Hors ligne · copie locale",
+            status: "Hors ligne · copie sur cet appareil",
           });
         else
           set({
             loaded: true,
-            error: "Serveur indisponible. Lance npm run dev ou npm start.",
+            error: "Le journal est temporairement indisponible. Vérifie ta connexion et réessaie.",
           });
       }
     },
@@ -166,6 +166,7 @@ const buildStore = () =>
           }),
         }),
       );
+      if(body.confirmationRequired)return {confirmationRequired:true};
       set({ user: body.user, error: "", loaded: false });
       try {
         await write("last-user", body.user);
@@ -173,6 +174,7 @@ const buildStore = () =>
       } finally {
         set({ loaded: true });
       }
+      return {confirmationRequired:false};
     },
     logout: async () => {
       if(get().guest){set({user:null,guest:false,data:newJournal(),dirty:false,error:"",conflict:null});return;}
@@ -208,7 +210,7 @@ const buildStore = () =>
           dirty: !s.guest,
           error: "",
           sequence: s.sequence + 1,
-          status: s.guest ? "Démonstration · modifications temporaires" : "Enregistré localement · synchronisation en attente",
+          status: s.guest ? "Démonstration · modifications temporaires" : "Enregistré sur cet appareil · synchronisation en attente",
         }));
         persist();
       } catch (e) {
@@ -244,7 +246,7 @@ const buildStore = () =>
           return;
         }
         set({
-          status: "Copie locale conservée · synchronisation interrompue",
+          status: "Copie sur cet appareil conservée · synchronisation interrompue",
           error: e instanceof Error ? e.message : "Connexion interrompue.",
         });
       } finally {
@@ -261,7 +263,7 @@ const buildStore = () =>
         dirty: keepLocal,
         conflict: null,
         status: keepLocal
-          ? "Copie locale retenue · à synchroniser"
+          ? "Copie de cet appareil retenue · à synchroniser"
           : "Copie serveur récupérée",
         sequence: s.sequence + 1,
       }));

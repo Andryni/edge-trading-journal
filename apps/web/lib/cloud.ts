@@ -7,11 +7,25 @@ export function cloudConfig() {
   return {url,key};
 }
 type Session = {access_token:string;refresh_token:string;expires_in:number;user:{id:string;email:string}};
+const confirmationUrl = "https://edge-tradingjournal.vercel.app/auth/confirm";
+function authError(code: string, fallback: string) {
+  const messages: Record<string,string> = {
+    invalid_credentials: "Adresse email ou mot de passe incorrect.",
+    email_not_confirmed: "Confirme ton adresse email avant de te connecter. Tu peux demander un nouveau lien ici.",
+    email_address_not_authorized: "L’envoi de confirmation n’est pas encore disponible pour cette adresse. Contacte l’administrateur d’EDGE.",
+    over_email_send_rate_limit: "Trop d’emails ont été demandés. Patiente avant de réessayer.",
+    over_request_rate_limit: "Trop de tentatives. Patiente avant de réessayer.",
+    email_exists: "Cette adresse possède déjà un compte. Essaie de te connecter.",
+    weak_password: "Choisis un mot de passe plus long et moins prévisible.",
+    signup_disabled: "Les inscriptions sont temporairement fermées.",
+  };
+  return messages[code] ?? fallback;
+}
 export async function supabaseRequest(path:string, options:RequestInit = {}, token?:string) {
   const {url,key}=cloudConfig();
   const response=await fetch(url+path,{...options,cache:"no-store",signal:AbortSignal.timeout(20000),headers:{apikey:key,...(token?{Authorization:`Bearer ${token}`} : {}),"Content-Type":"application/json",...options.headers}});
   const data=await response.json().catch(()=>({}));
-  if(!response.ok)throw new Error(data.msg ?? data.message ?? data.error_description ?? "Supabase est temporairement indisponible.");
+  if(!response.ok)throw new Error(authError(data.error_code ?? data.code ?? "",data.msg ?? data.message ?? data.error_description ?? "Le service est temporairement indisponible."));
   return data;
 }
 async function setSession(session:Session) {
@@ -29,9 +43,13 @@ export async function cloudSession():Promise<{user:{id:string;email:string};toke
   catch{return null;}
 }
 export async function cloudLogin(email:string,password:string,register:boolean) {
-  const session:Session=await supabaseRequest(register?"/auth/v1/signup":"/auth/v1/token?grant_type=password",{method:"POST",body:JSON.stringify({email,password})});
-  if(!session.access_token)throw new Error("Compte créé : confirme ton adresse dans l’email Supabase, puis connecte-toi ici.");
-  await setSession(session);return {id:session.user.id,email:session.user.email};
+  const session:Session=await supabaseRequest(register?"/auth/v1/signup?redirect_to="+encodeURIComponent(confirmationUrl):"/auth/v1/token?grant_type=password",{method:"POST",body:JSON.stringify({email,password})});
+  if(register&&!session.access_token)return {user:null,confirmationRequired:true};
+  if(!session.access_token||!session.user)throw new Error("La connexion n’a pas abouti. Réessaie dans un instant.");
+  await setSession(session);return {user:{id:session.user.id,email:session.user.email},confirmationRequired:false};
+}
+export async function cloudResendConfirmation(email:string) {
+  await supabaseRequest("/auth/v1/resend?redirect_to="+encodeURIComponent(confirmationUrl),{method:"POST",body:JSON.stringify({type:"signup",email})});
 }
 export async function cloudLogout() {
   const jar=await cookies(),token=jar.get("edge-sb-access")?.value;

@@ -1,4 +1,5 @@
 "use client";
+import Login from "./login";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { MotionConfig, useReducedMotion } from "framer-motion";
 import {
@@ -131,130 +132,6 @@ const FILTER_VIEWS = new Set([
   "Rapports",
 ]);
 const todayDate = () => nyDate(new Date().toISOString());
-function Login() {
-  const { login, enterDemo, cloud, error: serverError } = useApp();
-  const [register, setRegister] = useState(false),
-    [busy, setBusy] = useState(false),
-    [error, setError] = useState("");
-  async function demo() {
-    setBusy(true);
-    try {
-      enterDemo();
-    } catch (e) {
-      setError(String(e));
-    } finally {
-      setBusy(false);
-    }
-  }
-  return (
-    <div className="login-shell">
-      <div className="login-brand">
-        <img src="/brand/edge-logo.svg" alt="EDGE" width={212} height={53} />
-      </div>
-      <p className="eyebrow">TRADING INTELLIGENCE · EDGE</p>
-      <div className="login-grid">
-        <div className="login-intro">
-          <h1>
-            Ton journal
-            <br />
-            <span>de trading.</span>
-          </h1>
-          <p>
-            Observe tes vraies fuites. Protège ton capital. Construis une
-            exécution que tu peux répéter.
-          </p>
-          <div className="login-points">
-            <span>01 / Ton risque, avant ton résultat.</span>
-            <span>02 / Ton historique et tes captures, réunis.</span>
-            <span>03 / Une action concrète pour demain.</span>
-          </div>
-          <button
-            className="btn secondary"
-            disabled={busy}
-            onClick={() => void demo()}
-          >
-            Explorer les 180 trades de démonstration <ArrowUpRight size={17} />
-          </button>
-          <small className="footnote">
-            La démo utilise des données fictives en mémoire. Ton journal personnel reste séparé.
-          </small>
-        </div>
-        <Panel>
-          <Pill>
-            {register ? "NOUVEL ESPACE" : "BON RETOUR AU COCKPIT"}
-          </Pill>
-          <h2>{register ? "Créer mon journal" : "Connexion"}</h2>
-          <p className="footnote">
-            {cloud ? "Ton compte Supabase permet de retrouver le journal sur tes appareils. Confirme ton email après l’inscription." : "Ce compte utilise la base locale de cet ordinateur."}
-          </p>
-          <form
-            onSubmit={async (e) => {
-              e.preventDefault();
-              setBusy(true);
-              setError("");
-              const f = new FormData(e.currentTarget);
-              try {
-                await login(
-                  String(f.get("email")),
-                  String(f.get("password")),
-                  register,
-                );
-              } catch (err) {
-                setError(
-                  err instanceof Error ? err.message : "Connexion impossible.",
-                );
-              } finally {
-                setBusy(false);
-              }
-            }}
-          >
-            <Field label="Adresse email">
-              <input
-                name="email"
-                type="email"
-                autoComplete="username"
-                required
-              />
-            </Field>
-            <Field label="Mot de passe · 10 caractères minimum">
-              <input
-                name="password"
-                type="password"
-                minLength={10}
-                maxLength={200}
-                autoComplete={register ? "new-password" : "current-password"}
-                required
-              />
-            </Field>
-            {(error || serverError) && (
-              <p role="alert" className="error-message">
-                {error || serverError}
-              </p>
-            )}
-            <button className="btn primary full" disabled={busy}>
-              {busy
-                ? "Ouverture…"
-                : register
-                  ? "Créer mon espace"
-                  : "Ouvrir mon cockpit"}
-            </button>
-          </form>
-          <button
-            className="text-btn"
-            onClick={() => {
-              setRegister(!register);
-              setError("");
-            }}
-          >
-            {register
-              ? "J’ai déjà un compte local"
-              : "Créer un nouveau compte local"}
-          </button>
-        </Panel>
-      </div>
-    </div>
-  );
-}
 export default function Workspace() {
   const app = useApp();
   const { data, user, update, status, error, dirty } = app;
@@ -603,7 +480,7 @@ export default function Workspace() {
     setEditing(null);
     setEditingDraft(undefined);
     setSelected((current) => (current?.id === t.id ? t : current));
-    setNotice("Exécution enregistrée localement.");
+    setNotice(app.guest ? "Exécution ajoutée à la démonstration." : "Exécution enregistrée · synchronisation en attente.");
   }
   if (!app.loaded)
     return (
@@ -646,7 +523,7 @@ export default function Workspace() {
               <small>
                 {data.mode === "demo"
                   ? "Démonstration isolée"
-                  : app.cloud ? "Journal cloud" : "Journal local"}
+                  : app.cloud ? "Journal synchronisé" : "Journal sur cet appareil"}
               </small>
             </div>
             <span className="workspace-dot" />
@@ -665,7 +542,7 @@ export default function Workspace() {
               <Radio size={16} />
               <div>
                 <strong>
-                  {dirty ? "Modifications en attente" : "Journal local"}
+                  {app.guest ? "Démonstration" : dirty ? "Modifications en attente" : app.cloud ? "Journal synchronisé" : "Journal sur cet appareil"}
                 </strong>
                 <small>
                   {user.email.startsWith("demo-")
@@ -782,7 +659,7 @@ export default function Workspace() {
                   <h2>Une autre copie a modifié le journal.</h2>
                   <p>
                     Le serveur est à la révision {app.conflict.revision}.
-                    Exporte la copie locale avant de choisir. Aucun changement
+                    Exporte la copie de cet appareil avant de choisir. Aucun changement
                     n’a été écrasé automatiquement.
                   </p>
                   <div className="upload-row">
@@ -790,7 +667,7 @@ export default function Workspace() {
                       className="btn secondary"
                       onClick={() => void exportBackup(data).catch(e => setNotice(String(e)))}
                     >
-                      Exporter la copie locale
+                      Exporter la copie de cet appareil
                     </button>
                     <button
                       className="btn secondary"

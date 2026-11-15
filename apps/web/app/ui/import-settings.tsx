@@ -544,7 +544,7 @@ function InstrumentQuantityFields({spec}:{spec?:InstrumentSpec}) {
   return <div className="form-grid"><Field label="Catégorie"><select name="category" defaultValue={spec?.category ?? "OTHER"}>{Object.entries({FUTURE:"Futures",CFD:"CFD",FOREX:"Forex",CRYPTO:"Crypto",EQUITY:"Actions",OTHER:"Autre"}).map(([k,v])=><option key={k} value={k}>{v}</option>)}</select></Field><Field label="Pas de quantité"><input name="quantityStep" type="number" min=".00000001" step="any" required defaultValue={spec?.quantityStep ?? 1}/></Field><Field label="Quantité minimale"><input name="minQuantity" type="number" min=".00000001" step="any" required defaultValue={spec?.minQuantity ?? 1}/></Field></div>;
 }
 export function SettingsPanel() {
-  const { data, update } = useApp();
+  const { data, update, cloud, guest } = useApp();
   const [restore, setRestore] = useState<Journal | null>(null),
     [error, setError] = useState(""),
     [notice, setNotice] = useState(""),
@@ -597,9 +597,8 @@ export function SettingsPanel() {
             </label>
           </div>
           <p className="footnote">
-            Copie hors ligne : IndexedDB. Base locale serveur : SQLite. Les
-            modifications en attente sont synchronisées lorsque le serveur
-            revient. Un conflit exige un choix explicite.
+            {guest ? "La démonstration utilise des données fictives temporaires." : cloud ? "Ton journal est synchronisé dans ton espace privé. Une copie sur cet appareil permet de conserver les changements hors ligne." : "Ton journal est enregistré sur le serveur de cet ordinateur, avec une copie sur cet appareil."}
+            {" "}Les modifications en attente sont synchronisées au retour de la connexion. Un conflit exige un choix explicite.
           </p>
           {error && (
             <p role="alert" className="error-message">

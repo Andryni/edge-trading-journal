@@ -14,7 +14,7 @@ import {
   readBody,
 } from "../../../lib/auth";
 export const runtime = "nodejs";
-import {cloudEnabled,cloudLogin,cloudLogout} from "../../../lib/cloud";
+import {cloudEnabled,cloudLogin,cloudLogout,cloudResendConfirmation} from "../../../lib/cloud";
 // Limitation en mémoire par origine. Une installation distante demandera un rate limiter partagé.
 const attempts = new Map<string, { count: number; since: number }>();
 export async function GET() {
@@ -39,7 +39,7 @@ export async function POST(request: Request) {
     else record.count++;
     const body = z
       .object({
-        action: z.enum(["login", "register"]),
+        action: z.enum(["login", "register", "resend"]),
         email: z
           .string()
           .email()
@@ -48,10 +48,19 @@ export async function POST(request: Request) {
         password: z
           .string()
           .min(10, "Mot de passe : 10 caractères minimum.")
-          .max(200),
+          .max(200).optional(),
       })
       .parse(await readBody(request, 10000));
-    if(cloudEnabled())return Response.json({user:await cloudLogin(body.email,body.password,body.action === "register")},{headers:{"Cache-Control":"no-store"}});
+    if(body.action === "resend"){
+      if(!cloudEnabled())return jsonError(new Error("La confirmation email est disponible sur la version hébergée."),400);
+      await cloudResendConfirmation(body.email);
+      return Response.json({ok:true},{headers:{"Cache-Control":"no-store"}});
+    }
+    if(!body.password)throw new Error("Renseigne ton mot de passe.");
+    if(cloudEnabled()){
+      const result=await cloudLogin(body.email,body.password,body.action === "register");
+      return Response.json(result,{status:result.confirmationRequired?202:200,headers:{"Cache-Control":"no-store"}});
+    }
     let user = await db.user.findUnique({ where: { email: body.email } });
     if (body.action === "register") {
       if (user)
