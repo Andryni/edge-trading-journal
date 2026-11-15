@@ -7,27 +7,36 @@ import {
   type Trade,
 } from "@edge/core";
 import { useApp } from "../../lib/client-store";
-import { Panel, Field, Pill, r } from "./kit";
+import { Panel, Field, Pill } from "./kit";
 export default function Coach({ trades, scope }: { trades: Trade[]; scope?: string }) {
   const { data, update } = useApp();
   const [question, setQuestion] = useState(
       "Pourquoi ai-je perdu dans certains contextes ?",
     ),
     [api, setApi] = useState(false),
-    [configured, setConfigured] = useState(false),
+    [configuration, setConfiguration] = useState<"loading" | "ready" | "missing" | "error">("loading"),
     [provider, setProvider] = useState(""),
     [consent, setConsent] = useState(false),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
   useEffect(() => {
-    fetch("/api/coach")
-      .then((r) => r.json())
+    const controller = new AbortController();
+    fetch("/api/coach", { cache: "no-store", signal: controller.signal })
       .then((r) => {
-        setConfigured(r.configured);
-        setProvider(r.provider);
+        if (!r.ok) throw new Error("Configuration indisponible.");
+        return r.json();
       })
-      .catch(() => {});
+      .then((r) => {
+        setConfiguration(r.configured ? "ready" : "missing");
+        setProvider(typeof r.provider === "string" ? r.provider : "");
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setConfiguration("error");
+      });
+    return () => controller.abort();
   }, []);
+  const configured = configuration === "ready";
+  const providerName = provider === "generativelanguage.googleapis.com" ? "Google Gemini" : provider;
   async function ask() {
     if (!question.trim() || busy) return;
     setBusy(true);
@@ -35,10 +44,8 @@ export default function Coach({ trades, scope }: { trades: Trade[]; scope?: stri
     try {
       let answer = coachReply(question, trades, data.settings.minSample);
       if (api) {
-        if (!configured || !consent)
-          throw new Error(
-            "Active le consentement et configure le fournisseur côté serveur.",
-          );
+        if (!configured) throw new Error("Le Coach IA est indisponible pour le moment. Recharge la page pour vérifier sa connexion.");
+        if (!consent) throw new Error("Autorise l’envoi de tes statistiques dans les options du coach ci-dessus.");
         const summary = {
           statistics: summarize(trades),
           groups: behavioralAnalysis(trades, data.settings.minSample).map(
@@ -104,7 +111,7 @@ export default function Coach({ trades, scope }: { trades: Trade[]; scope?: stri
             <span className="eyebrow violet-text">Revue de la sélection</span>
             <h2>Coach d’exécution</h2>
           </div>
-          <Pill tone="neutral">{api ? "API DISTANTE" : "ANALYSE LOCALE"}</Pill>
+          <Pill tone="neutral">{api ? "COACH IA" : "COACH INTÉGRÉ"}</Pill>
         </div>
         <p className="muted">
           Les filtres actifs définissent les données analysées.{" "}
@@ -116,11 +123,42 @@ export default function Coach({ trades, scope }: { trades: Trade[]; scope?: stri
           <Pill tone="neutral">{trades.length} exécutions</Pill>
           <span>Les mêmes filtres que le journal</span>
         </div>
+        <div className="coach-config" role="group" aria-label="Options du coach">
+          <label className="check-inline">
+            <input
+              type="checkbox"
+              checked={api}
+              disabled={!configured || busy}
+              onChange={(e) => { setApi(e.target.checked); setError(""); }}
+            />
+            Utiliser le Coach IA
+          </label>
+          <p className="footnote" role="status">
+            {configuration === "loading" ? "Vérification de la connexion au Coach IA…"
+              : configured ? "Coach IA connecté : " + providerName
+              : configuration === "error" ? "Impossible de vérifier la connexion au Coach IA. Recharge la page pour réessayer."
+              : "Le Coach IA n’est pas activé. Le coach intégré reste disponible."}
+          </p>
+          {api && (
+            <>
+              <label className="check-inline">
+                <input
+                  type="checkbox"
+                  checked={consent}
+                  disabled={busy}
+                  onChange={(e) => { setConsent(e.target.checked); setError(""); }}
+                />
+                J’autorise l’envoi de ma question et des statistiques filtrées à {providerName}.
+              </label>
+              <p className="footnote">Les captures, notes brutes, email et clés sont exclus de cet envoi.</p>
+            </>
+          )}
+        </div>
         <div className="chat-list">
           {!data.messages.length && (
             <div className="chat-bubble assistant">
               Commence par « Quel est mon meilleur setup sur le NQ ? ». Le coach
-              local analyse les groupes mesurés ; il ne voit pas le marché en
+              intégré analyse les groupes mesurés ; il ne voit pas le marché en
               direct.
             </div>
           )}
@@ -130,8 +168,8 @@ export default function Coach({ trades, scope }: { trades: Trade[]; scope?: stri
                 {m.role === "user"
                   ? "TOI"
                   : m.source === "api"
-                    ? "COACH API"
-                    : "COACH LOCAL"}{" "}
+                    ? "COACH IA"
+                    : "COACH INTÉGRÉ"}{" "}
                 · {new Date(m.createdAt).toLocaleDateString("fr-FR")}
               </small>
               {m.scope && <p className="footnote">{m.scope}</p>}
@@ -169,9 +207,15 @@ export default function Coach({ trades, scope }: { trades: Trade[]; scope?: stri
               required
             />
           </Field>
+          {api && !consent && (
+            <p id="coach-consent-help" className="footnote" role="status">
+              Coche l’autorisation dans les options du coach ci-dessus pour activer l’analyse IA.
+            </p>
+          )}
           <button
             className="btn primary full"
-            disabled={busy || !question.trim()}
+            disabled={busy || !question.trim() || (api && (!configured || !consent))}
+            aria-describedby={api && !consent ? "coach-consent-help" : undefined}
           >
             {busy ? "Analyse en cours…" : "Analyser ma question"}
           </button>
@@ -181,43 +225,6 @@ export default function Coach({ trades, scope }: { trades: Trade[]; scope?: stri
             {error}
           </p>
         )}
-      </Panel>
-      <Panel className="coach-config">
-        <h2>Activer une API de langage</h2>
-        <p className="footnote">
-          La clé et le modèle sont configurés dans le fichier d’environnement du
-          serveur. La clé n’est jamais envoyée au navigateur.
-        </p>
-        <label className="check-inline">
-          <input
-            type="checkbox"
-            checked={api}
-            disabled={!configured}
-            onChange={(e) => setApi(e.target.checked)}
-          />
-          Utiliser le fournisseur configuré
-        </label>
-        <p className="footnote">
-          {configured
-            ? "API configurée : " + provider
-            : "API non configurée : le coach local reste disponible."}
-        </p>
-        {api && (
-          <label className="check-inline">
-            <input
-              type="checkbox"
-              checked={consent}
-              onChange={(e) => setConsent(e.target.checked)}
-            />
-            J’accepte d’envoyer ma question et les statistiques agrégées
-            filtrées à {provider}. Les captures, notes brutes, email et clés
-            sont exclus.
-          </label>
-        )}
-        <p className="footnote">
-          Aucune promesse de rentabilité. Les corrélations observées peuvent
-          changer avec la taille de l’échantillon.
-        </p>
       </Panel>
     </div>
   );

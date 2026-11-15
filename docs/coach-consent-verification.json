@@ -1,0 +1,13 @@
+{
+  "checks": [
+    "Consent is explicit and blocks both button and form submissions before any API request.",
+    "Consent controls appear before long conversation history.",
+    "Consent enables one API request and the response is labelled Coach IA.",
+    "Integrated coach remains usable without external consent or API traffic.",
+    "Consent is visible without scrolling on mobile; no horizontal overflow.",
+    "Missing configuration and failed connectivity have separate messages."
+  ],
+  "errors": [],
+  "transport": "Mocked API; no Gemini request, private journal access or data modification.",
+  "success": true
+}

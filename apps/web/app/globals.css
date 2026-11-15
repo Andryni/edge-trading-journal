@@ -2379,11 +2379,23 @@ details > summary {
 }
 .coach-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 280px;
+  grid-template-columns: minmax(0, 1fr);
   gap: 20px;
 }
 .coach-config {
-  align-self: start;
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+.coach-config .footnote {
+  margin: 0;
+}
+.coach-config .check-inline {
+  align-items: flex-start;
 }
 .chat-list {
   max-height: 60vh;
