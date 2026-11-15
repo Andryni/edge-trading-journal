@@ -107,8 +107,10 @@ export default function Coach({ trades, scope }: { trades: Trade[]; scope?: stri
           <Pill tone="neutral">{api ? "API DISTANTE" : "ANALYSE LOCALE"}</Pill>
         </div>
         <p className="muted">
-          Les filtres actifs définissent les données analysées. Le mode local
-          donne une réponse structurée et fonctionne sans Internet.
+          Les filtres actifs définissent les données analysées.{" "}
+          {api
+            ? "Le coach IA analyse les statistiques de cette sélection avec ton consentement."
+            : "Le coach intégré donne une réponse structurée et fonctionne sans Internet."}
         </p>
         <div className="coach-selection-note">
           <Pill tone="neutral">{trades.length} exécutions</Pill>
