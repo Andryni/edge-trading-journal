@@ -1,0 +1,35 @@
+{
+  "date": "2026-11-15",
+  "productionUrl": "https://edge-tradingjournal.vercel.app",
+  "deploymentId": "dpl_7JHdJASuvc9SDbRLWSEtW7CmcCZ2",
+  "deploymentState": "READY",
+  "model": "gemini-4-hydrogen",
+  "checks": {
+    "providerRegressionScript": "passed",
+    "typecheck": "passed",
+    "productionBuild": "passed",
+    "publicConfigurationStatus": 200,
+    "legacyAliasConfigurationStatus": 200,
+    "anonymousCoachStatus": 401,
+    "demoLoginStatus": 200,
+    "demoLogoutStatus": 200,
+    "successfulGeminiResponseObserved": true
+  },
+  "regressionsCovered": [
+    "trim configuration and normalize the Gemini compatibility URL",
+    "exclude OpenAI store parameter from Gemini requests",
+    "preserve OpenAI store=false behavior",
+    "read provider errors in object and array formats",
+    "redact API keys from errors and diagnostic logs",
+    "map invalid keys, quotas, network errors and timeouts",
+    "retry transient HTTP server errors once within one shared 90-second deadline"
+  ],
+  "liveServiceLimitation": {
+    "latestHydrogenProviderStatus": 503,
+    "providerReason": "Model experiencing high demand; retry later.",
+    "temporaryFlashTestStatus": 504,
+    "originalHydrogenConfigurationRestored": true,
+    "reliableLiveAvailabilityConfirmed": false,
+    "notes": "Live requests used synthetic statistics and the private demo account. One Gemini response succeeded; later requests hit upstream overload or timeout. No journal data was changed."
+  }
+}
