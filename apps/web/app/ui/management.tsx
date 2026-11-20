@@ -43,11 +43,12 @@ export function AccountEditor({
   const { data, update } = useApp();
   const [error, setError] = useState("");
   const a = account ?? newJournal().accounts[0];
+  const [market, setMarket] = useState(account?.market ?? "");
   const rule =
     data.rules.find((r) => r.accountId === a.id) ?? newJournal().rules[0];
   return (
     <Modal
-      title={account ? "Règles du compte" : "Ajouter un compte"}
+      title={account ? "Modifier le compte" : "Ajouter un compte"}
       onClose={onClose}
     >
       <p className="footnote">
@@ -61,6 +62,7 @@ export function AccountEditor({
             const d = new FormData(e.currentTarget);
             const parsed = accountSchema.parse({
               id: account?.id ?? crypto.randomUUID(),
+              market: market || undefined,
               name: d.get("name"),
               provider: d.get("provider"),
               ...Object.fromEntries(
@@ -113,6 +115,9 @@ export function AccountEditor({
               maxLength={100}
             />
           </Field>
+          <Field label="Type de compte"><select required={!account || !!account.market} value={market} onChange={e => setMarket(e.target.value)}>
+            <option value="">Choisir le type</option><option value="FUTURE">Futures</option><option value="CFD">CFD</option>
+          </select></Field>
           <Field label="Prop firm / courtier">
             <input name="provider" defaultValue={account?.provider ?? ""} />
           </Field>
@@ -122,7 +127,7 @@ export function AccountEditor({
             ["maxDrawdown", "Drawdown maximal ($)"],
             ["dailyLossLimit", "Perte journalière ($)"],
             ["minTradingDays", "Jours de trading minimum"],
-            ["maxContracts", "Contrats maximum"],
+            ["maxContracts", market === "CFD" ? "Lots maximum" : "Contrats maximum"],
             ["highWaterMark", "Plus haut capital constaté ($)"],
           ].map(([k, label]) => (
             <Field key={k} label={label}>
@@ -208,7 +213,8 @@ export function AccountEditor({
   );
 }
 export function Accounts({ at }: { at: string }) {
-  const { data } = useApp();
+  const { data, update } = useApp();
+  const [removing, setRemoving] = useState<Account | null>(null);
   const [edit, setEdit] = useState<Account | null>(null),
     [create, setCreate] = useState(false),
     [risk, setRisk] = useState(200);
@@ -246,7 +252,7 @@ export function Accounts({ at }: { at: string }) {
           return (
             <Panel key={a.id}>
               <div className="panel-heading">
-                <h2>{a.name}</h2>
+                <h2>{a.name}</h2><Pill tone="neutral">{a.market === "CFD" ? "CFD" : a.market === "FUTURE" ? "Futures" : "Type à préciser"}</Pill>
                 <Pill tone={s.remaining > 0 ? "green" : "amber"}>
                   {a.provider || "Personnel"}
                 </Pill>
@@ -314,13 +320,44 @@ export function Accounts({ at }: { at: string }) {
                   Cette perte franchirait le seuil configuré.
                 </p>
               )}
-              <button className="btn secondary full" onClick={() => setEdit(a)}>
-                Modifier les règles
-              </button>
+              <div className="account-actions">
+                <button className="btn secondary" onClick={() => setEdit(a)}>Modifier le compte</button>
+                <button className="text-btn negative" onClick={() => setRemoving(a)}>Supprimer le compte</button>
+              </div>
             </Panel>
           );
         })}
       </div>
+      {!data.accounts.length && <Empty text="Aucun compte. Ajoute un compte pour commencer ton journal." />}
+      {removing && <Modal title={`Supprimer « ${removing.name} » ?`} onClose={() => setRemoving(null)}>
+        <p>Cette suppression effacera aussi les éléments rattachés à ce compte.</p>
+        <ul className="account-removal-counts">
+          <li>Trades clôturés et leurs captures : {data.trades.filter(t => t.accountId === removing.id).length}</li>
+          <li>Positions ouvertes et brouillons : {data.drafts.filter(d => d.accountId === removing.id).length}</li>
+          <li>Règles et dérogations de risque du compte</li>
+        </ul>
+        <div className="account-actions">
+          <button className="btn secondary" onClick={() => setRemoving(null)}>Annuler</button>
+          <button className="btn account-delete" onClick={() => {
+            const id = removing.id;
+            update(j => {
+              const removedIds = new Set(j.trades.filter(t => t.accountId === id).map(t => t.id));
+              j.accounts = j.accounts.filter(a => a.id !== id);
+              j.rules = j.rules.filter(rule => rule.accountId !== id);
+              j.overrides = j.overrides.filter(override => override.accountId !== id);
+              j.trades = j.trades.filter(t => t.accountId !== id);
+              j.drafts = j.drafts.filter(d => d.accountId !== id);
+              for (const draft of j.drafts) {
+                if (draft.sourceTradeId && removedIds.has(draft.sourceTradeId)) delete draft.sourceTradeId;
+              }
+              for (const review of j.reviews) {
+                if (removedIds.has(review.bestTradeId)) review.bestTradeId = "";
+              }
+            });
+            setRemoving(null);
+          }}>Confirmer la suppression</button>
+        </div>
+      </Modal>}
       {(edit || create) && (
         <AccountEditor
           account={edit ?? undefined}

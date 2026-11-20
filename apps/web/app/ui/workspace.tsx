@@ -1,5 +1,8 @@
 "use client";
+import "./performance.css";
 import Login from "./login";
+import { InstrumentMark } from "./instrument-mark";
+import { MetricGraphic } from "./metric-graphic";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { MotionConfig, useReducedMotion } from "framer-motion";
 import {
@@ -37,6 +40,8 @@ import {
   ChevronDown,
 } from "lucide-react";
 import {
+  accountLabel,
+  INSTRUMENTS,
   calculateTrade,
   summarize,
   averagePlan,
@@ -217,6 +222,9 @@ export default function Workspace() {
     };
   }, [mobile]);
   useEffect(() => {
+    if (account !== "all" && !data.accounts.some(item => item.id === account)) setAccount("all");
+  }, [account, data.accounts]);
+  useEffect(() => {
     if (pendingScroll.current === null) return;
     const top = pendingScroll.current;
     pendingScroll.current = null;
@@ -317,6 +325,7 @@ export default function Workspace() {
     (trade) => trade.id === selected?.id,
   );
   const stats = useMemo(() => summarize(filtered), [filtered]);
+  const instrumentResults = useMemo(() => breakdown(filtered, trade => trade.instrument), [filtered]);
   const comparison = useMemo(
     () =>
       previousPeriod(
@@ -485,7 +494,7 @@ export default function Workspace() {
   if (!app.loaded)
     return (
       <div className="loading-screen">
-        <img src="/brand/edge-mark.svg" alt="EDGE" width={56} height={56} />
+        <img src="/brand/edge-mark.svg?v=spectrum2" alt="EDGE" width={56} height={56} />
         <p>Ouverture de ton journal…</p>
       </div>
     );
@@ -513,7 +522,7 @@ export default function Workspace() {
               go("Cockpit");
             }}
           >
-            <img src="/brand/edge-logo.svg" alt="EDGE — accueil du cockpit" width={176} height={44} />
+            <img src="/brand/edge-logo.svg?v=spectrum2" alt="EDGE — accueil du cockpit" width={176} height={44} />
           </a>
           <div className="brand-sub">Risque · Exécution · Revue</div>
           <div className="workspace">
@@ -534,9 +543,9 @@ export default function Workspace() {
               type="button"
               className={"nav-item " + (view === "Paramètres" ? "active" : "")}
               onClick={() => go("Paramètres")}
+              title="Paramètres" aria-label="Paramètres"
             >
-              <Settings size={17} aria-hidden="true" />
-              Paramètres
+              <Settings size={17} aria-hidden="true" /><span>Paramètres</span>
             </button>
             <div className="local-card">
               <Radio size={16} />
@@ -553,12 +562,13 @@ export default function Workspace() {
             </div>
             <button
               className="nav-item"
+              title="Déconnexion" aria-label="Déconnexion"
               onClick={() =>
                 void app.logout().catch((e) => setNotice(e.message))
               }
             >
               <LogOut size={17} />
-              Déconnexion
+              <span>Déconnexion</span>
             </button>
           </div>
         </aside>
@@ -699,7 +709,7 @@ export default function Workspace() {
                         <option value="all">Tous les comptes</option>
                         {data.accounts.map((item) => (
                           <option key={item.id} value={item.id}>
-                            {item.name}
+                            {accountLabel(item)}
                           </option>
                         ))}
                       </select>
@@ -784,7 +794,7 @@ export default function Workspace() {
                         <option value="all">Tous</option>
                         {data.accounts.map((a) => (
                           <option key={a.id} value={a.id}>
-                            {a.name}
+                            {accountLabel(a)}
                           </option>
                         ))}
                       </select>
@@ -941,6 +951,7 @@ export default function Workspace() {
                       <Metric
                         compact
                         label="Performance nette"
+                        graphic={<MetricGraphic stats={stats} kind="equity" />}
                         comparison={delta("r")}
                         value={<RollingValue value={stats.r} />}
                         sub={signedMoney(stats.net)}
@@ -950,6 +961,7 @@ export default function Workspace() {
                       <Metric
                         compact
                         label="Espérance / trade"
+                        graphic={<MetricGraphic stats={stats} kind="averages" />}
                         comparison={delta("expectancy")}
                         value={<RollingValue value={stats.expectancy} />}
                         sub={`Profit factor ${stats.profitFactor === null ? "— (pas de pertes)" : num(stats.profitFactor)}`}
@@ -958,6 +970,7 @@ export default function Workspace() {
                       <Metric
                         compact
                         label="Taux de réussite"
+                        graphic={<MetricGraphic stats={stats} kind="outcomes" />}
                         comparison={delta("winRate", "points")}
                         value={
                           <RollingValue
@@ -971,6 +984,7 @@ export default function Workspace() {
                       <Metric
                         compact
                         label="Drawdown maximal"
+                        graphic={<MetricGraphic stats={stats} kind="drawdown" />}
                         comparison={delta("drawdown", "usd")}
                         value={
                           <RollingValue value={stats.drawdown} format="usd" />
@@ -980,6 +994,15 @@ export default function Workspace() {
                       />
                     </div>
 
+                    {instrumentResults.length > 0 && <section className="market-section" aria-label="Résultats par instrument">
+                      <h2>Instruments</h2>
+                      <div className="asset-strip">{instrumentResults.map(group =>
+                        <button key={group.label} type="button" onClick={() => openJournal({label: group.label, ids: filtered.filter(trade => trade.instrument === group.label).map(trade => trade.id)})}>
+                          <InstrumentMark symbol={group.label} /><span><strong>{group.label}</strong><small>{tradeCount(group.count)}</small></span>
+                          <span className={group.net < 0 ? "negative" : "positive"}>{signedMoney(group.net)}</span>
+                        </button>
+                      )}</div>
+                    </section>}
                     <Panel className="equity-panel cockpit-equity">
                       <div className="panel-heading">
                         <div>
@@ -1045,7 +1068,7 @@ export default function Workspace() {
                           <h2>Séance</h2>
                           <p className="session-account">
                             {a
-                              ? "Risque : " + a.name
+                              ? "Risque : " + accountLabel(a)
                               : "Aucun compte configuré"}
                           </p>
                         </div>
@@ -1084,7 +1107,12 @@ export default function Workspace() {
                                 </strong>
                               </div>
                               <div
-                                className="life-bar session-risk-bar"
+                                className="risk-ladder"
+                                data-low={
+                                  prop.dailyRemaining / a.dailyLossLimit < 0.25
+                                    ? "true"
+                                    : undefined
+                                }
                                 role="meter"
                                 aria-label="Budget journalier restant avant la limite"
                                 aria-valuemin={0}
@@ -1098,31 +1126,24 @@ export default function Workspace() {
                                 )}
                                 aria-valuetext={`${money(prop.dailyRemaining)} disponibles ; limite initiale ${money(a.dailyLossLimit)}`}
                               >
-                                {Array.from({ length: 24 }, (_, i) => (
+                                <div className="risk-ladder-track">
                                   <span
-                                    key={i}
-                                    className={
-                                      i <
-                                      Math.max(
-                                        0,
-                                        Math.min(
-                                          24,
-                                          (prop.dailyRemaining /
-                                            a.dailyLossLimit) *
-                                            24,
-                                        ),
-                                      )
-                                        ? "lit"
-                                        : ""
-                                    }
+                                    className="risk-ladder-fill"
+                                    style={{
+                                      width: `${Math.max(0, Math.min(100, (prop.dailyRemaining / a.dailyLossLimit) * 100))}%`,
+                                    }}
                                   />
-                                ))}
-                              </div>
-                              <div className="risk-scale">
-                                <span>
-                                  Limite initiale : {money(a.dailyLossLimit)}
-                                </span>
-                                <span>Gains clôturés inclus</span>
+                                  <span
+                                    className="risk-ladder-marker"
+                                    style={{
+                                      left: `${Math.max(0, Math.min(100, (prop.dailyRemaining / a.dailyLossLimit) * 100))}%`,
+                                    }}
+                                  />
+                                </div>
+                                <div className="risk-ladder-scale">
+                                  <span>0 $</span>
+                                  <span>{money(a.dailyLossLimit)}</span>
+                                </div>
                               </div>
                               <div className="session-risk-facts">
                                 <div>
@@ -1523,7 +1544,8 @@ export function Equity({
         >
           <defs>
             <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="var(--accent)" stopOpacity={0.14} />
+              <stop offset="0%" stopColor="var(--accent)" stopOpacity={0.38} />
+              <stop offset="65%" stopColor="var(--accent)" stopOpacity={0.09} />
               <stop offset="100%" stopColor="var(--accent)" stopOpacity={0} />
             </linearGradient>
           </defs>
@@ -1610,13 +1632,26 @@ function Analytics({
   minSample: number;
   onInspect?: (scope: JournalScope) => void;
 }) {
-  const stats = summarize(trades);
-  const [dimension, setDimension] = useState("setup");
+  const stats = useMemo(() => summarize(trades), [trades]);
+  const history = useMemo(() => {
+    let peak = 0;
+    return [{ date: "Départ", equity: 0, drawdown: 0 }, ...stats.curve.map(point => {
+      peak = Math.max(peak, point.usd);
+      return { date: point.date, equity: point.usd, drawdown: point.usd - peak };
+    })];
+  }, [stats]);
+  const [dimension, setDimension] = useState("session");
+  const [unit, setUnit] = useState<"net" | "r">("net");
+  const hourFormat = useMemo(() => new Intl.DateTimeFormat("fr-FR", {
+    timeZone: "America/New_York", hour: "2-digit", hourCycle: "h23",
+  }), []);
   const keys: Record<string, (t: Trade) => string> = {
-    setup: (t) => t.setup,
-    instrument: (t) => t.instrument,
-    session: (t) => t.session,
-    timeframe: (t) => t.timeframe,
+    instrument: (t) => t.instrument.trim() || "Non renseigné",
+    setup: (t) => t.setup.trim() || "Non renseigné",
+    timeframe: (t) => t.timeframe.trim() || "Non renseigné",
+    heure: (t) => hourFormat.format(new Date(t.enteredAt)).slice(0, 2) + " h",
+    session: (t) => t.session?.trim() || "Non renseigné",
+    marché: (t) => (t.category ?? INSTRUMENTS[t.instrument]?.category) === "FUTURE" ? "Futures" : t.category ?? INSTRUMENTS[t.instrument]?.category ?? "Non renseigné",
     jour: (t) => nyDate(t.exitedAt),
     semaine: (t) => {
       const d = new Date(nyDate(t.exitedAt) + "T12:00Z");
@@ -1630,7 +1665,10 @@ function Analytics({
     "respect du plan": (t) => !isPlanRated(t) ? "Non renseigné" : t.planScore! >= 8 ? "Respecté" : "Hors plan",
     "état de revue": (t) => t.reviewStatus === "REVIEWED" ? "Revue terminée" : "À revoir",
   };
-  const groups = breakdown(trades, keys[dimension], minSample);
+  const labels: Record<string, string> = { instrument: "Instrument", setup: "Setup", timeframe: "Unité de temps", heure: "Heure d’entrée", session: "Session" };
+  const groups = breakdown(trades, keys[dimension], minSample).sort((a, b) =>
+    dimension === "heure" ? a.label.localeCompare(b.label) : b[unit] - a[unit]);
+  const scale = Math.max(1, ...groups.map(group => Math.abs(group[unit])));
   const setups = breakdown(trades, (t) => t.setup, minSample);
   const execution = executionAnalysis(trades);
   function inspectContext(label: string) {
@@ -1646,75 +1684,79 @@ function Analytics({
       <div className="metrics-grid">
         <Metric
           label="Drawdown max. de clôture"
+          graphic={<MetricGraphic stats={stats} kind="drawdown" />}
           value={money(stats.drawdown)}
           action="Garde une marge sous le seuil du compte."
         />
         <Metric
           label="Gain moyen / perte moyenne"
+          graphic={<MetricGraphic stats={stats} kind="averages" />}
           value={r(stats.averageWinR)}
           sub={r(stats.averageLossR) + " sur les perdants"}
           action="Respecte ton risque initial sur chaque trade."
         />
         <Metric
           label="Plus gros gain / perte"
+          graphic={<MetricGraphic stats={stats} kind="extremes" />}
           value={money(stats.best)}
           sub={money(stats.worst)}
           action="Vérifie si ta taille est cohérente entre trades."
         />
         <Metric
           label="Séries max. gains / pertes"
+          graphic={<MetricGraphic stats={stats} kind="streaks" />}
           value={stats.maxWinStreak + " / " + stats.maxLossStreak}
           action="Prépare une pause avant la prochaine dérive."
         />
       </div>
+      <div className="analysis-history">
+        {(["equity", "drawdown"] as const).map(key => {
+          const equity = key === "equity";
+          const title = equity ? "Courbe d’équité" : "Drawdown";
+          const color = equity ? "var(--green)" : "var(--red)";
+          return <Panel key={key}>
+            <h2>{title}</h2>
+            <p className="footnote">{equity ? "Résultat net cumulé depuis le début de la sélection ($)" : "Recul depuis le plus haut résultat clôturé de la sélection ($)"}</p>
+            {stats.count ? <div className="chart" role="img" aria-label={title + " en dollars, par clôture"}>
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={history} margin={{ top: 12, bottom: 4, left: 0, right: 15 }}>
+                  <CartesianGrid vertical={false} stroke="var(--border)" strokeDasharray="3 5" />
+                  <XAxis dataKey="date" minTickGap={40} tickFormatter={date => date === "Départ" ? date : date.slice(8) + "/" + date.slice(5, 7)} tick={{ fill: "var(--muted)", fontSize: 11 }} tickLine={false} axisLine={false} />
+                  <YAxis domain={equity ? ["auto", "auto"] : ["auto", 0]} tick={{ fill: "var(--muted)", fontSize: 11 }} tickLine={false} axisLine={false} />
+                  <Tooltip formatter={value => [money(Number(value)), title]} contentStyle={{background: "var(--surface)", borderColor: "var(--border-strong)"}} />
+                  <Area type="linear" dataKey={key} stroke={color} strokeWidth={2} fill={color} fillOpacity={0.15} isAnimationActive={false} />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div> : <p className="empty">Aucun trade clôturé sur cette sélection.</p>}
+          </Panel>;
+        })}
+      </div>
       <div className="bottom-grid">
         <Panel>
-          <div className="panel-heading">
-            <h2>Résultat en R par contexte</h2>
-            <Field label="Regrouper par">
-              <select
-                value={dimension}
-                onChange={(e) => setDimension(e.target.value)}
-              >
-                {Object.keys(keys).map((k) => (
-                  <option key={k}>{k}</option>
-                ))}
-              </select>
-            </Field>
+          <h2>Performance par contexte</h2>
+          <div className="dimension-picks" aria-label="Axes de performance">
+            {["session", "instrument", "setup", "timeframe", "heure"].map(key =>
+              <button type="button" key={key} aria-pressed={dimension === key} onClick={() => setDimension(key)}>{labels[key]}</button>
+            )}
           </div>
-          <div className="chart">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={groups.map((g) => ({ name: g.label, r: g.r }))}
-                onClick={(state) => {
-                  const group = groups[Number(state.activeTooltipIndex)];
-                  if (group) inspectContext(group.label);
-                }}
-                margin={{ left: -20, right: 10 }}
-              >
-                <CartesianGrid vertical={false} stroke="#ffffff0a" />
-                <XAxis
-                  dataKey="name"
-                  tick={{ fill: "var(--muted)", fontSize: 12 }}
-                />
-                <YAxis tick={{ fill: "var(--muted)", fontSize: 12 }} />
-                <Tooltip
-                  contentStyle={{
-                    background: "var(--surface-raised)",
-                    border: "1px solid #ffffff1f",
-                  }}
-                />
-                <Bar dataKey="r" isAnimationActive={false}>
-                  {groups.map((g) => (
-                    <Cell
-                      key={g.label}
-                      fill={g.r >= 0 ? "#34D399" : "#FB7185"}
-                    />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+          <div className="analysis-controls">
+            <Field label="Comparer par"><select value={dimension} onChange={event => setDimension(event.target.value)}>
+              {Object.keys(keys).map(key => <option key={key} value={key}>{labels[key] ?? key}</option>)}
+            </select></Field>
+            <Field label="Résultat net"><select value={unit} onChange={event => setUnit(event.target.value === "r" ? "r" : "net")}>
+              <option value="net">Dollars ($)</option><option value="r">Multiples de risque (R)</option>
+            </select></Field>
           </div>
+          <p className="footnote">{dimension === "heure" ? "Heure d’entrée à New York · " : ""}{unit === "r" ? "Calculé sur les trades dont le risque initial est connu." : "Gains et pertes après frais."}</p>
+          {groups.length ? <div className="performance-bars">{groups.map(group => {
+            const value = group[unit];
+            const measurable = unit === "net" || group.riskCount > 0;
+            return <button type="button" key={group.label} className="performance-row" onClick={() => inspectContext(group.label)}>
+              <span>{group.label}<small>{group.count} {group.count === 1 ? "trade" : "trades"}</small></span>
+              <span className="performance-track" aria-hidden="true"><i className={value < 0 ? "loss" : "gain"} style={{width: Math.abs(value) / scale * 50 + "%"}} /></span>
+              <strong>{measurable ? unit === "r" ? r(value) : signedMoney(value) : "—"}</strong>
+            </button>;
+          })}</div> : <p>Aucun trade clôturé sur cette sélection.</p>}
         </Panel>
         <Panel>
           <h2>Radar du respect du plan par setup</h2>
@@ -1728,17 +1770,19 @@ function Analytics({
                     (averagePlan(trades.filter((t) => t.setup === s.label)) ?? 0) * 10,
                 }))}
               >
-                <PolarGrid stroke="#ffffff1a" />
+                <PolarGrid stroke="#d2eaa339" />
                 <PolarAngleAxis
                   dataKey="name"
                   tick={{ fill: "var(--muted)", fontSize: 12 }}
                 />
                 <PolarRadiusAxis domain={[0, 100]} tick={false} />
+                <Tooltip formatter={value => [num(Number(value) / 10, 1) + " / 10", "Respect du plan"]} contentStyle={{background: "var(--surface)", borderColor: "var(--border-strong)", borderRadius: 10}} />
                 <Radar
                   dataKey="score"
                   stroke="var(--accent)"
                   fill="var(--accent)"
-                  fillOpacity={0.18}
+                  fillOpacity={0.42}
+                  dot={{ r: 3, fill: "var(--accent)" }}
                   isAnimationActive={false}
                 />
               </RadarChart>
@@ -1754,8 +1798,8 @@ function Analytics({
               <tr>
                 <th>Contexte</th>
                 <th>Effectif</th>
-                <th>Espérance</th>
-                <th>Win rate</th>
+                <th>Net ($)</th><th>R cumulés</th>
+                <th>Espérance</th><th>Réussite</th>
                 <th>Lecture</th>
               </tr>
             </thead>
@@ -1773,7 +1817,8 @@ function Analytics({
                     </button>
                   </td>
                   <td>{g.count}</td>
-                  <td>{r(g.expectancy)}</td>
+                  <td>{signedMoney(g.net)}</td><td>{g.riskCount ? r(g.r) : "—"}</td>
+                  <td>{g.riskCount ? r(g.expectancy) : "—"}</td>
                   <td>{num(g.winRate * 100, 1)} %</td>
                   <td>
                     {g.reliable
@@ -1862,7 +1907,7 @@ function Leaks({
     Session: (trade) => trade.session,
     "Heure ET": (trade) =>
       localDateTime(trade.enteredAt).slice(11, 13) + "h ET",
-    Taille: (trade) => trade.quantity + " contrat(s)/lot(s)",
+    Taille: (trade) => trade.quantity + (trade.category === "CFD" ? " lot(s)" : trade.category === "FUTURE" ? " contrat(s)" : " unité(s)"),
     Jour: (trade) =>
       new Intl.DateTimeFormat("fr-FR", {
         weekday: "long",

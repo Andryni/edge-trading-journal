@@ -3,6 +3,7 @@
     "name": "EDGE Cockpit",
     "slug": "edge-cockpit",
     "scheme": "edge",
+    "icon": "./assets/edge-icon.png",
     "version": "1.0.0",
     "userInterfaceStyle": "dark",
     "plugins": [

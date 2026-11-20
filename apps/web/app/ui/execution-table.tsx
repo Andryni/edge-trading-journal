@@ -1,4 +1,5 @@
-﻿"use client";
+"use client";
+import { InstrumentMark } from "./instrument-mark";
 import { useEffect, useState } from "react";
 import { ArrowDown, ArrowUp, ArrowUpRight } from "lucide-react";
 import { calculateTrade, localDateTime, type Trade } from "@edge/core";
@@ -26,7 +27,13 @@ export function TradeTable({
   selectedId?: string;
 }) {
   const [limit, setLimit] = useState(50);
-  useEffect(() => setLimit(50), [trades]);
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 700px)");
+    const apply = () => setLimit(media.matches ? 20 : 50);
+    apply();
+    media.addEventListener("change", apply);
+    return () => media.removeEventListener("change", apply);
+  }, [trades]);
   return (
     <div className="execution-list">
       <div
@@ -80,9 +87,15 @@ export function TradeTable({
                 )}
               </th>
               {columns.includes("setup") && <th>Setup / contexte</th>}
-              {columns.includes("direction") && <th>Direction</th>}
-              {columns.includes("mental") && <th>État mental</th>}
-              {columns.includes("plan") && <th>Plan</th>}
+              {columns.includes("direction") && (
+                <th className="optional-column">Direction</th>
+              )}
+              {columns.includes("mental") && (
+                <th className="optional-column">État mental</th>
+              )}
+              {columns.includes("plan") && (
+                <th className="optional-column">Plan</th>
+              )}
               <th>
                 <span className="sr-only">Ouvrir</span>
               </th>
@@ -97,7 +110,7 @@ export function TradeTable({
                   data-trade-id={trade.id}
                   data-selected={trade.id === selectedId || undefined}
                 >
-                  <td>
+                  <td className="instrument-cell">
                     <button
                       type="button"
                       className="trade-link"
@@ -114,14 +127,7 @@ export function TradeTable({
                         onSelect ? onSelect(trade) : onOpen(trade, trades)
                       }
                     >
-                      <span
-                        className={
-                          "instrument " +
-                          (trade.instrument.includes("GC") ? "gold" : "")
-                        }
-                      >
-                        {trade.instrument.slice(0, 3)}
-                      </span>
+                      <InstrumentMark symbol={trade.instrument} />
                       <span>
                         <strong>{trade.instrument}</strong>
                         <small>
@@ -132,7 +138,7 @@ export function TradeTable({
                   </td>
                   <td
                     className={
-                      "numeric-cell " +
+                      "numeric-cell result-cell " +
                       (metrics.net > 0
                         ? "positive"
                         : metrics.net < 0
@@ -167,21 +173,23 @@ export function TradeTable({
                     </td>
                   )}
                   {columns.includes("direction") && (
-                    <td>
+                    <td className="optional-column">
                       <span className="direction-label">
                         {trade.direction === "LONG" ? "↗ Achat" : "↘ Vente"}
                       </span>
                     </td>
                   )}
                   {columns.includes("mental") && (
-                    <td>{trade.mentalBefore || "Non renseigné"}</td>
+                    <td className="optional-column">
+                      {trade.mentalBefore || "Non renseigné"}
+                    </td>
                   )}
                   {columns.includes("plan") && (
-                    <td>
+                    <td className="optional-column">
                       <TradeStatus trade={trade} score />
                     </td>
                   )}
-                  <td>
+                  <td className="row-action">
                     <button
                       type="button"
                       className="icon-btn row-open"

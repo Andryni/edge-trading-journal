@@ -36,7 +36,8 @@ model Account {
  dailyLossLimit Float
  consistencyLimit Float
  minTradingDays Int @default(5)
- maxContracts Int @default(3)
+ maxContracts Float @default(3)
+ market String?
  highWaterMark Float
  createdAt DateTime @default(now())
  trades Trade[]

@@ -1,0 +1,48 @@
+.analysis-controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(9rem, 100%), 1fr));
+  gap: .8rem;
+  margin-block: 1.2rem .6rem;
+}
+.performance-bars {
+  display: grid;
+  max-height: 25rem;
+  overflow: auto;
+  scrollbar-width: thin;
+  margin-block: 1rem;
+}
+.performance-row {
+  display: grid;
+  grid-template-columns: minmax(4.4rem, 1fr) minmax(2rem, 1.4fr) auto;
+  align-items: center;
+  gap: .7rem;
+  padding: .7rem .35rem;
+  border: 0;
+  border-bottom: 1px solid color-mix(in srgb, currentColor 13%, transparent);
+  color: var(--text);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+.performance-row:hover, .performance-row:focus-visible {
+  background: color-mix(in srgb, var(--accent) 9%, transparent);
+}
+.performance-row > span:first-child { overflow-wrap: anywhere; }
+.performance-row small { display: block; margin-top: .18rem; color: var(--muted); }
+.performance-row strong { font-variant-numeric: tabular-nums; }
+.performance-track {
+  position: relative;
+  height: 1.7rem;
+  background: linear-gradient(90deg, transparent calc(50% - 1px), var(--muted) 50%, transparent 50%);
+}
+.performance-track i { position: absolute; top: 25%; height: 50%; border-radius: .2rem; }
+.performance-track .gain { left: 50%; background: linear-gradient(90deg, #388c84, #80e2bd); }
+.performance-track .loss { right: 50%; background: linear-gradient(90deg, #ffa4aa, #b65d73); }
+.dimension-picks { display: flex; flex-wrap: wrap; gap: .45rem; margin-top: 1rem; }
+.dimension-picks button { border: 1px solid color-mix(in srgb, currentColor 25%, transparent); padding: .45rem .8rem; border-radius: 2rem; background: transparent; color: var(--muted); cursor: pointer; }
+.dimension-picks button[aria-pressed="true"] { background: var(--accent); color: #101820; border-color: transparent; }
+.analysis-history { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; margin-block: 1rem; }
+.analysis-history .chart { height: 220px; }
+@media (max-width: 800px) {
+  .analysis-history { grid-template-columns: minmax(0, 1fr); }
+}

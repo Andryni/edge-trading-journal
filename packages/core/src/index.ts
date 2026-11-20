@@ -188,6 +188,11 @@ export function summarize(trades: Trade[]) {
     curve,
   };
 }
+export function positionQuantity(raw: number, step: number, minimum: number) {
+  if (!Number.isFinite(raw) || raw <= 0 || step <= 0) return 0;
+  const size = Number((Math.floor(raw / step + 1e-10) * step).toPrecision(12));
+  return size < minimum ? 0 : size;
+}
 export function sizePosition(
   instrument: Instrument,
   risk: number,
@@ -203,8 +208,10 @@ export function sizePosition(
   )
     return 0;
   const spec = INSTRUMENTS[instrument];
-  return Math.floor(
+  if (!spec) return 0;
+  return positionQuantity(
     risk / ((Math.abs(entry - stop) * spec.tickValue) / spec.tickSize),
+    spec.quantityStep ?? 1, spec.minQuantity ?? 1,
   );
 }
 const nyFormatter = new Intl.DateTimeFormat("en-CA", {

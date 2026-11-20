@@ -3,6 +3,12 @@ import { useEffect, useState, type FormEvent } from "react";
 import { ArrowUpRight, ArrowRight, Check, Eye, EyeOff, LockKeyhole, Mail, ShieldCheck } from "lucide-react";
 import { useApp } from "../../lib/client-store";
 import LoginChart from "./login-chart";
+import { EdgeWordmark } from "./edge-wordmark";
+
+const backdropSeries = Array.from({length: 81}, (_, i) => {
+  const phase = (i % 80) * Math.PI / 40;
+  return 110 + 38 * Math.sin(phase * 2) + 22 * Math.cos(phase * 5) + 12 * Math.sin(phase * 17);
+});
 
 export default function Login() {
   const { login, enterDemo, error: serverError } = useApp();
@@ -52,21 +58,31 @@ export default function Login() {
   }
   return (
     <main className="auth-page">
-      <div className="auth-ambient" aria-hidden="true" />
+      <div className="auth-ambient" aria-hidden="true">
+        <i className="ambient-wave wave-cyan" /><i className="ambient-wave wave-violet" />
+        <svg className="background-market" viewBox="0 0 800 220" preserveAspectRatio="none">
+          <g className="background-market-scroll">{[0,800].map(offset => <g key={offset} transform={`translate(${offset} 0)`}>
+            <polyline fill="none" stroke="#8fbbff" strokeWidth="1.5" points={backdropSeries.map((v,i)=>`${10*i},${v-14}`).join(" ")} />
+            {backdropSeries.slice(0,-1).map((open,i) => {
+              const close = backdropSeries[i+1], color = close < open ? "#71d9dc" : "#b299fa";
+              return <g key={i} fill={color} stroke={color}><path d={`M${10*i+5} ${Math.min(open,close)-4}V${Math.max(open,close)+4}`} /><rect x={10*i+3} y={Math.min(open,close)} width="4" height={Math.max(1,Math.abs(close-open))}/></g>;
+            })}
+          </g>)}</g>
+        </svg>
+        <svg className="ambient-contours" viewBox="0 0 1400 500" preserveAspectRatio="none">
+          {Array.from({length: 15}, (_,i) => <path key={i} d={`M-100 ${225+i*11} C230 ${60+i*5},420 ${570-i*9},750 ${260+i*7} S1120 ${120+i*7},1510 ${220-i*6}`} />)}
+        </svg>
+      </div>
       <header className="auth-header">
-        <a href="/" className="auth-brand" aria-label="EDGE — accueil"><img src="/brand/edge-logo.svg" alt="EDGE" width={180} height={45} /><span>TRADING JOURNAL</span></a>
+        <a href="/" className="auth-brand" aria-label="EDGE — accueil"><EdgeWordmark /><span>TRADING JOURNAL</span></a>
         <button className="auth-demo-link" type="button" onClick={enterDemo}>Explorer la démo <ArrowUpRight size={16} /></button>
       </header>
       <div className="auth-layout">
         <section className="auth-story" aria-labelledby="auth-headline">
-          <p className="auth-overline"><span /> POUR LES TRADERS QUI PRENNENT DU RECUL</p>
-          <h1 id="auth-headline">Le marché bouge.<br /><span>Garde ton cap.</span></h1>
-          <p className="auth-description">Derrière chaque trade, une décision.<br />Retrouve tes repères, comprends tes habitudes<br className="auth-desktop-break" /> et construis ton propre edge.</p>
-          <LoginChart />
-          <div className="auth-pillars"><span><b>01</b> Ton risque.</span><span><b>02</b> Tes décisions.</span><span><b>03</b> Ta progression.</span></div>
+          <h1 id="auth-headline">Ton journal <span>de trading.</span></h1>
+          <p className="auth-description">Consigne tes positions, compare tes setups et prépare ta prochaine séance.</p>
         </section>
         <section className="auth-form-card" aria-labelledby="auth-form-title">
-          <div className="auth-card-top"><span className="auth-card-symbol"><LockKeyhole size={20} /></span><span>TON ESPACE, TON EDGE.</span><i /></div>
           {confirmation ? (
             <div className="auth-confirmation">
               <span className="auth-mail-icon"><Mail size={28} /></span>
@@ -96,8 +112,8 @@ export default function Login() {
           {notice && <p className="auth-feedback success" role="status"><Check size={16} />{notice}</p>}
           <div className="auth-card-footer"><ShieldCheck size={16} /><span>Un espace personnel. Accessible sur tes appareils.</span></div>
         </section>
+        <LoginChart />
       </div>
-      <footer className="auth-footer"><span>EDGE / PREPARE. EXECUTE. REFLECT.</span><span>Ta discipline fait la différence.</span></footer>
     </main>
   );
 }

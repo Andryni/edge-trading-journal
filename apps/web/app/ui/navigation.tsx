@@ -68,6 +68,8 @@ export function PrimaryNavigation({
       {NAVIGATION.map((group) => (
         <button
           key={group.view}
+          aria-label={group.label}
+          title={group.label}
           type="button"
           className={
             "nav-item " + (group.screens.includes(view) ? "active" : "")

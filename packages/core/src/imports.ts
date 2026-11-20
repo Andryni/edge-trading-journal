@@ -1,5 +1,6 @@
 import {
   tradeSchema,
+  accountSymbols,
   tradeFingerprint,
   mergeImport,
   zonedToUtc,
@@ -162,6 +163,7 @@ export function normalizeImport(
   },
 ) {
   const accepted: Trade[] = [];
+  const symbols = new Set(accountSymbols(j, options.accountId));
   const errors: { row: number; message: string }[] = [];
   const warnings: string[] = [];
   if (!mapping.stop)
@@ -192,6 +194,7 @@ export function normalizeImport(
         throw new Error(
           `Instrument ${instrument} inconnu : configure sa valeur de tick.`,
         );
+      if (!symbols.has(canonical)) throw new Error(`${canonical} est incompatible avec le type de compte choisi.`);
       const side = String(get("direction") ?? "")
         .trim()
         .toLowerCase();

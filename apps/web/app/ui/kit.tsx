@@ -130,6 +130,7 @@ export function Metric({
   tone = "",
   comparison,
   compact = false,
+  graphic,
 }: {
   label: string;
   value: ReactNode;
@@ -138,13 +139,14 @@ export function Metric({
   tone?: string;
   comparison?: ReactNode;
   compact?: boolean;
+  graphic?: ReactNode;
 }) {
   return (
     <Panel className={"metric" + (compact ? " metric-compact" : "")}>
       <span className="eyebrow">{label}</span>
-      <strong className={"metric-value mono block-value " + tone}>
+      <div className="metric-reading"><strong className={"metric-value mono block-value " + tone}>
         {value}
-      </strong>
+      </strong>{graphic}</div>
       <p className="metric-sub">{sub}</p>
       {comparison}
       {!compact && <div className="metric-note">{action}</div>}

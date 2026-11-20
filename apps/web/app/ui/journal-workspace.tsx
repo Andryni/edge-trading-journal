@@ -145,7 +145,7 @@ export default function JournalWorkspace({
       <dl className="stat-strip journal-stats">
         <Stat
           label="Résultat de la sélection"
-          value={r(stats.r)}
+          value={stats.riskCount ? r(stats.r) : "—"}
           sub={signedMoney(stats.net)}
           tone={stats.r > 0 ? "positive" : stats.r < 0 ? "negative" : ""}
         />
@@ -160,12 +160,12 @@ export default function JournalWorkspace({
         />
         <Stat
           label="Taux de réussite"
-          value={num(stats.winRate * 100, 1) + " %"}
+          value={stats.count ? num(stats.winRate * 100, 1) + " %" : "—"}
           sub="Neutres inclus"
         />
         <Stat
           label="Espérance / trade"
-          value={r(stats.expectancy)}
+          value={stats.riskCount ? r(stats.expectancy) : "—"}
           sub={
             "Profit factor " +
             (stats.profitFactor === null ? "—" : num(stats.profitFactor))

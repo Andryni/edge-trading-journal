@@ -10,5 +10,5 @@ export default function ConfirmEmail() {
     // la connexion au journal demande ensuite le mot de passe de l’utilisateur.
     location.replace("/?confirmation="+result);
   }, []);
-  return <main className="auth-page" style={{display:"grid",placeContent:"center",gap:24,textAlign:"center"}}><img src="/brand/edge-logo.svg" alt="EDGE" width={180} height={45} /><p>Retour vers ton journal…</p><a href="/">Revenir à la connexion</a></main>;
+  return <main className="auth-page" style={{display:"grid",placeContent:"center",gap:24,textAlign:"center"}}><img src="/brand/edge-logo.svg?v=spectrum2" alt="EDGE" width={180} height={45} /><p>Retour vers ton journal…</p><a href="/">Revenir à la connexion</a></main>;
 }

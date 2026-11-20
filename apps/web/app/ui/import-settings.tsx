@@ -8,7 +8,7 @@ import {
   journalSchema,
   readBackup,
   newJournal,
-  sizePosition,
+  accountLabel, accountSymbols, positionQuantity,
   calculateTrade,
   type ColumnMap,
   type Journal,
@@ -32,7 +32,7 @@ const FIELD_LABELS: Record<string, string> = {
   stop: "Stop loss",
   target: "Objectif",
   exit: "Prix sortie",
-  quantity: "Taille / contrats",
+  quantity: "Taille / contrats ou lots",
   fees: "Frais totaux",
   setup: "Setup",
   session: "Session",
@@ -172,7 +172,7 @@ export function ImportTrades() {
                 >
                   {data.accounts.map((a) => (
                     <option key={a.id} value={a.id}>
-                      {a.name}
+                      {accountLabel(a)}
                     </option>
                   ))}
                 </select>
@@ -415,13 +415,15 @@ export function ImportTrades() {
 }
 export function Calculator({initialAccountId, onPrepare}: {initialAccountId?: string; onPrepare?: (values: Record<string,string>) => void}) {
   const { data } = useApp();
-  const [symbol, setSymbol] = useState("NQ"),
+  const [preferredSymbol, setSymbol] = useState("NQ"),
     [budget, setBudget] = useState(data.settings.riskBudget),
     [entry, setEntry] = useState(21400),
     [stop, setStop] = useState(21390),
     [percent, setPercent] = useState(0),
     [account, setAccount] = useState(initialAccountId ?? data.accounts[0]?.id ?? ""),
     [fees, setFees] = useState(0);
+  const symbols = accountSymbols(data,account);
+  const symbol = symbols.includes(preferredSymbol) ? preferredSymbol : symbols[0] ?? "";
   const spec = data.settings.instruments[symbol];
   const a = data.accounts.find((a) => a.id === account);
   const risk =
@@ -431,20 +433,20 @@ export function Calculator({initialAccountId, onPrepare}: {initialAccountId?: st
     : 0;
   const raw = perUnit > 0 ? risk / perUnit : 0;
   const step = spec?.quantityStep ?? (symbol === "XAUUSD" ? .01 : 1);
-  const size = Math.floor(raw / step) * step;
+  const size = positionQuantity(Math.min(raw, a?.maxContracts ?? 0), step, spec?.minQuantity ?? step);
   return (
     <Panel className="plan-panel">
       <h2>Calibrer la position avant l’entrée</h2>
       <p className="footnote">
         Risque total = distance au stop × valeur du point × taille + frais
-        estimés par contrat. Le pourcentage utilise le capital initial
+        estimés par contrat ou par lot. Le pourcentage utilise le capital initial
         configuré.
       </p>
       <div className="calculator-layout">
         <div className="form-grid">
           <Field label="Instrument">
             <select value={symbol} onChange={(e) => setSymbol(e.target.value)}>
-              {Object.keys(data.settings.instruments).map((s) => (
+              {symbols.map((s) => (
                 <option key={s}>{s}</option>
               ))}
             </select>
@@ -456,7 +458,7 @@ export function Calculator({initialAccountId, onPrepare}: {initialAccountId?: st
             >
               {data.accounts.map((a) => (
                 <option key={a.id} value={a.id}>
-                  {a.name}
+                  {accountLabel(a)}
                 </option>
               ))}
             </select>
@@ -515,7 +517,7 @@ export function Calculator({initialAccountId, onPrepare}: {initialAccountId?: st
             <small>Taille maximale</small>
             <strong>
               {entry > 0 && stop > 0 && entry !== stop ? size : 0}{" "}
-              {symbol === "XAUUSD" ? "lot(s)" : "contrat(s)"}
+              {(a?.market ?? spec?.category) === "CFD" ? "lot(s)" : "contrat(s)"}
             </strong>
           </div>
           <div>
@@ -531,10 +533,9 @@ export function Calculator({initialAccountId, onPrepare}: {initialAccountId?: st
         </div>
       </div>
       {onPrepare && <button className="btn primary" disabled={!a || size <= 0 || entry <= 0 || stop <= 0 || entry === stop || size > a.maxContracts} onClick={() => onPrepare({status:"DRAFT", accountId:account,instrument:symbol,direction:stop < entry ? "LONG" : "SHORT",entry:String(entry),stop:String(stop),quantity:String(size),fees:String(fees*size),targetKnown:"no"})}>Préparer ce trade dans le journal</button>}
-      {a && size > a.maxContracts && (
-        <p className="error-message">
-          Cette taille dépasse la limite de {a.maxContracts} contrat(s)/lot(s)
-          du compte. Utilise au maximum cette limite.
+      {a && raw > a.maxContracts && (
+        <p className="footnote">
+          Taille plafonnée à la limite du compte : {a.maxContracts} {a.market === "CFD" ? "lot(s)" : "contrat(s) / lot(s)"}.
         </p>
       )}
     </Panel>

@@ -1,0 +1,143 @@
+:root {
+  --bg:#101012; --surface:#19191c; --surface-2:#222226; --surface-3:#303036;
+  --surface-raised:#242429; --input:#151518; --text:#f5f5f7; --muted:#b4b4bc; --faint:#9999a3;
+  --accent:#ff6386; --accent-2:#ff9bb2; --accent-ink:#220611; --brand-quiet:#ff54761a;
+  --green:#55dcb4; --red:#ff7785; --border:#ffffff15; --border-strong:#ffffff2b;
+  --font-display:var(--font-body); --radius-panel:10px;
+}
+.app-shell,.main-wrap {background:var(--bg)}
+.sidebar,.sidebar .workspace,.topbar {background:#171719;border-color:var(--border)}
+.page-heading {background:transparent;color:var(--text);padding:6px 0;border-radius:0}
+.page-heading::before {display:none}
+.page-title-group h1,.auth-story h1,.auth-form-card h2,.panel-heading h2,.session-command-head h2 {font-family:var(--font-body);font-weight:600;letter-spacing:-.045em}
+.page-title-group h1 {color:var(--text)}
+.page-description {color:var(--muted)}
+.page-heading .heading-actions .btn {background:var(--surface-2);color:var(--text);border-color:var(--border-strong)}
+.page-heading .heading-actions .btn.primary {background:#fb385f;color:#140107;border-color:transparent}
+.nav-item.active {color:#ff7895;background:#ff45671a;box-shadow:inset 2px 0 #ff4567;border-color:transparent}
+.nav-item.active svg,.nav-item:hover svg {color:#ff7895}
+.nav-item:hover {background:#ffffff09}
+.panel,.metric,.stat-strip,.performance-workspace .performance-content > .recent-panel,.performance-workspace .performance-rail .session-command,.performance-workspace .performance-content > .equity-panel,.modal,.performance-content .cockpit-kpis > .metric {
+  background:#19191c;border-color:var(--border);border-radius:10px;box-shadow:none;
+}
+.metric:has(.metric-meter.averages),.metric:has(.metric-spark.risk) {background:#19191c}
+.performance-content .cockpit-kpis > .metric:has(.metric-meter),.performance-content .cockpit-kpis > .metric:has(.metric-spark) {border-color:var(--border)}
+.asset-mark {width:32px;height:32px;flex:none;display:inline-grid;place-items:center;border-radius:50%;background:color-mix(in srgb,currentColor 16%,#17171c);border:1px solid color-mix(in srgb,currentColor 32%,transparent);font:600 11px var(--font-body)}
+.market-section {min-width:0}
+.market-section h2 {font:600 15px var(--font-body);margin-bottom:9px}
+.asset-strip {display:flex;gap:8px;overflow:auto;scrollbar-width:thin;padding:2px}
+.asset-strip button {display:flex;align-items:center;gap:10px;flex:1 0 150px;padding:11px;background:var(--surface);border:1px solid var(--border);border-radius:9px;text-align:left;color:var(--text);cursor:pointer}
+.asset-strip button:hover,.asset-strip button:focus-visible {border-color:var(--accent)}
+.asset-strip small {display:block;color:var(--muted);font-size:10px}
+.asset-strip button > span:last-child {margin-left:auto;font-size:12px;font-variant-numeric:tabular-nums}
+@media(min-width:701px){
+  .app-shell .sidebar {width:68px;padding:15px 9px;align-items:center;overflow:visible}
+  .app-shell .main-wrap {margin-left:68px}
+  .sidebar .brand {width:38px;height:40px;overflow:hidden;background:url('/brand/edge-mark.svg?v=spectrum2') center/contain no-repeat;margin:0 auto 22px}
+  .sidebar .brand img,.sidebar .brand-sub,.sidebar .workspace,.sidebar .local-card,.sidebar .navigation-caption {display:none}
+  .sidebar nav,.sidebar .sidebar-bottom {width:100%}
+  .sidebar .nav-item {position:relative;justify-content:center;min-height:44px;padding:0;width:100%;border-radius:9px}
+  .sidebar .nav-item span {display:none}
+  .sidebar .nav-item:is(:hover,:focus-visible) span {display:block;position:absolute;left:calc(100% + 6px);background:#26262c;color:white;padding:7px 12px;border-radius:6px;white-space:nowrap;z-index:5}
+}
+.auth-page {background:#07070b;color:#f7f7fc}
+.auth-page .auth-ambient {background:radial-gradient(ellipse at 6% 109%,#ab72df 0,transparent 24%),radial-gradient(ellipse at 29% 114%,#58c9fc 0,transparent 34%),radial-gradient(ellipse at 25% 93%,#203dd4 0,transparent 48%),radial-gradient(ellipse at 92% 31%,#19194c 0,transparent 47%)}
+.auth-header {min-height:76px}
+.auth-layout {grid-template-columns:minmax(290px,.86fr) minmax(0,1.2fr);align-items:center;gap:20px 8%;margin:clamp(30px,5vh,70px) auto}
+.auth-story {grid-column:1;grid-row:1}
+.auth-story h1 {font-size:clamp(34px,3.5vw,54px);line-height:1.03}
+.auth-story h1 br {display:none}
+.auth-story h1 span {color:#c8d4ff;font-style:normal}
+.auth-form-card {grid-column:1;grid-row:2;border:1px solid #ffffff2a;border-radius:16px;background:#101019ed;box-shadow:0 20px 70px #0005}
+.auth-page .auth-demo-link {color:white;border-color:#51516c}
+.auth-submit,.auth-submit:hover {background:#4d64ef;color:white;border-color:transparent}
+.auth-page .auth-visual {grid-column:2;grid-row:1 / span 2;width:100%;height:clamp(290px,34vw,450px);margin:0;perspective:950px}
+.auth-chart-scene {height:90%;transform-style:preserve-3d;transform:rotateX(var(--tilt-x,0deg)) rotateY(var(--tilt-y,0deg));transition:transform .24s ease-out}
+.auth-chart-platform {inset:13% 3% auto;width:94%;height:75%;transform:rotateY(-12deg) rotateX(10deg);animation:terminal-orbit 9s ease-in-out infinite alternate}
+.auth-chart-plane {background:linear-gradient(140deg,#242637,#0f101b 60%,#21294d);border-color:#878de384;box-shadow:0 25px 80px #02031999}
+.auth-chart-underlay {transform:translateZ(-28px) translateY(8px);background:#191e39;border-color:#636fae77}
+.auth-chart-heading,.auth-chart-axis {color:#b9bed7;font-size:9px}
+.auth-note-plan {top:4%;right:0}.auth-note-review {bottom:3%;left:1%}
+.auth-floating-note {background:#171927ef;border-color:#7a83cc66}
+.auth-floating-note small {color:#b4bbdc}.auth-floating-note strong {color:#f2f3fc;font-size:18px}
+.auth-chart-scene .auth-candle {--candle:#8ba1ff}.auth-chart-scene .auth-candle.negative {--candle:#d29ce4}
+.preview-overview {position:absolute;inset:0 0 auto;padding:10px 14px;background:#141520;border-bottom:1px solid #ffffff24;border-radius:14px 14px 0 0}
+.preview-bar {display:flex;gap:6px;align-items:center;color:white;font-size:12px}
+.preview-bar span {margin-left:auto;color:#a9b3cb;font-size:10px}
+.preview-kpis {display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px}
+.preview-kpis div {background:#20212e;border:1px solid #ffffff15;border-radius:4px;padding:5px 8px}
+.preview-kpis small,.preview-kpis strong {display:block}.preview-kpis small {font-size:9px;color:#b1b6ca}.preview-kpis strong {font:600 14px var(--font-body);color:white}
+.auth-chart-plane .auth-chart-heading {top:45%}.auth-chart-plane .auth-chart-grid {top:44%}
+.auth-chart-plane .auth-candles {top:52%;bottom:15%}.auth-chart-plane .auth-equity {top:50%;height:33%}
+.auth-form-card {animation:none}
+.auth-equity-line {stroke:#99a7ff}.auth-equity-area {fill:#778afc22}
+@keyframes terminal-orbit {from{transform:rotateY(-16deg) rotateX(12deg) translateY(3px)}to{transform:rotateY(-5deg) rotateX(5deg) translateY(-6px)}}
+@media(max-width:760px){
+  .auth-layout {gap:18px;margin:24px auto}
+  .auth-page .auth-visual {height:235px}
+  .preview-overview {padding:4px 8px}.preview-kpis {margin-top:2px}.preview-kpis div {padding:2px 5px}
+  .auth-header {min-height:62px}
+}
+@media(prefers-reduced-motion:reduce){.auth-chart-scene {transform:none}}
+
+/* Trading terminal surfaces. Layout and reading order are shared with the cockpit. */
+.cockpit-view .metric, .cockpit-view .market-section button,
+.cockpit-view .performance-content > .panel,
+.cockpit-view .performance-rail > .panel {
+  border-radius:8px; background:#181819; border-color:#ffffff14;
+}
+.cockpit-view .metric-reading strong {font-family:var(--font-body);font-weight:500;letter-spacing:-.045em;font-variant-numeric:tabular-nums}
+.cockpit-view .panel-heading h2,.cockpit-view .session-command-head h2 {font-weight:500;letter-spacing:-.025em}
+.cockpit-view .asset-strip button:hover {background:#21191d;border-color:#be3455}
+.cockpit-view .equity-panel {--accent:#42caa0}
+.cockpit-view .session-risk-bar {accent-color:#42caa0}
+.auth-page .auth-ambient {
+  background:radial-gradient(ellipse at 8% 114%,#cd7ce6 0,transparent 27%),
+    radial-gradient(ellipse at 33% 111%,#6bd7ff 0,transparent 30%),
+    radial-gradient(ellipse at 24% 89%,#193cd9 0,transparent 48%),
+    radial-gradient(ellipse at 95% 15%,#141436 0,transparent 45%);
+}
+.auth-page .auth-form-card {background:linear-gradient(145deg,#13141bf5,#0a0b12f5);border-color:#ffffff21}
+.auth-page .auth-story h1,.auth-page .auth-form-card h2 {font-weight:500;letter-spacing:-.04em}
+.auth-page .auth-chart-plane {background:linear-gradient(125deg,#161720,#090a10 65%,#17224a);border-color:#8c97cd52}
+.auth-page .auth-chart-underlay {box-shadow:0 18px 45px #2839ad38}
+.auth-page .preview-kpis div {background:linear-gradient(145deg,#1b1d29,#11121a);border-color:#ffffff1a}
+.auth-page .auth-demo-link {background:#254bf3;color:white;padding:8px 15px;border-radius:25px}
+
+/* The light sweeps and price trace move independently of the form. */
+.auth-ambient {overflow:hidden}
+.ambient-wave {position:absolute;display:block;pointer-events:none;inset:auto auto -24% -12%;width:76%;height:52%;border-radius:50%;opacity:.64;transform-origin:center}
+.wave-cyan {background:radial-gradient(ellipse,#58bffa77,transparent 67%);animation:ambient-tide 13s ease-in-out infinite alternate}
+.wave-violet {left:8%;bottom:-17%;background:radial-gradient(ellipse,#9863ff77,transparent 65%);animation:ambient-tide 18s -6s ease-in-out infinite alternate-reverse}
+.ambient-contours {position:absolute;left:-10%;bottom:-11%;width:120%;height:55%;fill:none;stroke:#a5bcff;stroke-width:.8;opacity:.24;animation:ambient-current 16s ease-in-out infinite alternate}
+.login-market {position:absolute;left:4%;top:51%;width:92%;height:35%;overflow:hidden;transform:translateZ(13px);filter:drop-shadow(0 2px 4px #040519)}
+.auth-chart-plane .auth-chart-grid {background-size:8% 25%;background-image:linear-gradient(#a5bfff14 1px,transparent 1px),linear-gradient(90deg,#a5bfff14 1px,transparent 1px)}
+.auth-page .auth-chart-platform::before {content:"";position:absolute;inset:4%;border-radius:16px;border:1px solid #819aff64;background:linear-gradient(140deg,#28356850,#16192d24);transform:translateZ(-48px) translate(0,16px);pointer-events:none}
+.auth-page .auth-chart-underlay {border-bottom:3px solid #889aff78;box-shadow:0 16px 55px #3649f547}
+.auth-page .auth-note-review {transform:translateZ(35px)}
+.auth-page .auth-animation-control {width:36px;height:32px;color:#e2eaff;background:#101325;border-color:#97aaff62}
+.auth-page:has(.is-paused) .auth-ambient * {animation-play-state:paused}
+@keyframes ambient-tide {from{transform:translate3d(-8%,2%,0) rotate(-8deg) scale(.94)}to{transform:translate3d(22%,-26%,0) rotate(9deg) scale(1.13)}}
+@keyframes ambient-current {from{transform:translate3d(-3%,4%,0) rotate(-3deg)}to{transform:translate3d(4%,-9%,0) rotate(2deg)}}
+@media(prefers-reduced-motion:reduce){.auth-page .auth-ambient * {animation:none}.auth-page .auth-chart-platform {animation:none}}
+.auth-brand .edge-wordmark {display:block;width:166px;height:auto;flex:none}
+.background-market {position:absolute;inset:auto 0 8%;width:100%;height:39%;overflow:hidden;opacity:.29;pointer-events:none}
+.background-market-scroll {animation:market-pan 64s linear infinite}
+@keyframes market-pan {to {transform:translateX(-800px)}}
+@media(max-width:760px){.auth-brand .edge-wordmark {width:130px}.background-market {opacity:.2}}
+@media(prefers-reduced-motion:reduce){.background-market-scroll {animation:none}}
+
+/* Neutral sans-serif and aligned financial figures across the signed-in journal. */
+.app-shell {
+  --font-body:var(--font-geist-sans),Arial,sans-serif;
+  --font-display:var(--font-body);
+  --font-numeric:var(--font-body);
+  font-family:var(--font-body);
+}
+.app-shell :is(button,input,select,textarea,table) {font-family:var(--font-body)}
+.app-shell :is(.mono,.metric-value,.stat dd,.execution-table,.account-equity) {font-variant-numeric:tabular-nums lining-nums}
+.app-shell .page-title-group h1 {font-weight:600;letter-spacing:-.035em}
+.app-shell .panel-heading h2 {font-weight:550;letter-spacing:-.025em}
+.account-actions {display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-top:16px}
+.account-actions .account-delete {background:#b82d47;color:#fff;border-color:#b82d47}
+.account-removal-counts {padding-left:20px;margin:14px 0;color:var(--muted);list-style:disc}

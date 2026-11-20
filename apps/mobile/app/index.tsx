@@ -21,6 +21,7 @@ import * as Images from "expo-image-picker";
 import Svg, { Polyline, Line, Rect } from "react-native-svg";
 import {
   newJournal,
+  accountLabel, accountSymbols, positionQuantity, averagePlan,
   journalSchema,
   tradeSchema,
   calculateTrade,
@@ -596,7 +597,7 @@ export default function App() {
               const g = guardStatus(data, a.id);
               return (
                 <Card key={a.id}>
-                  <Text style={s.h2}>{a.name}</Text>
+                  <Text style={s.h2}>{accountLabel(a)}</Text>
                   <Text style={s.value}>{usd(p.balance)}</Text>
                   <Text style={s.body}>
                     Marge drawdown : {usd(p.remaining)} · quotidien{" "}
@@ -861,11 +862,7 @@ export default function App() {
                     ? st.r
                     : g.unit === "USD"
                       ? st.net
-                      : ts.length
-                        ? (ts.reduce((s, t) => s + t.planScore, 0) /
-                            ts.length) *
-                          10
-                        : 0;
+                      : (averagePlan(ts) ?? 0) * 10;
               return (
                 <Card key={g.id}>
                   <Text style={s.h2}>{g.label}</Text>
@@ -1296,6 +1293,7 @@ export default function App() {
           label: names[key],
           value: String(a[key as keyof Account]),
         })),
+        { key: "market", label: "Type de compte", value: a.market ?? "" },
         {
           key: "maxTrades",
           label: "Trades maximum par jour",
@@ -1321,6 +1319,7 @@ export default function App() {
         update((j) => {
           const next = {
             ...a,
+            market: v.market === "CFD" ? "CFD" as const : v.market === "FUTURE" ? "FUTURE" as const : undefined,
             name: v.name,
             provider: v.provider,
             ...Object.fromEntries(
@@ -1379,7 +1378,7 @@ function GenericForm({
         >
           <Button label="Annuler" secondary onPress={onClose} />
           <Text style={s.title}>{title}</Text>
-          {fields.map((f) => (
+          {fields.map((f) => f.key === "market" ? <Choices key={f.key} label={f.label} values={["FUTURE","CFD"]} value={values.market} onChange={market => setValues({...values,market})}/> : (
             <Input
               key={f.key}
               label={f.label}
@@ -1392,6 +1391,7 @@ function GenericForm({
             label="Enregistrer"
             onPress={() => {
               try {
+                if (fields.some(f => f.key === "market") && !values.market) throw new Error("Choisis Futures ou CFD.");
                 onSave(values);
               } catch (e) {
                 Alert.alert("Vérifie les champs", String(e));
@@ -1414,13 +1414,16 @@ function TradeForm({
   onClose: () => void;
   onSave: (t: Trade) => void;
 }) {
-  const [symbol, setSymbol] = useState(trade?.instrument ?? "NQ"),
+  const [preferredSymbol, setSymbol] = useState(trade?.instrument ?? "NQ"),
     [account, setAccount] = useState(
       trade?.accountId ?? journal.accounts[0]?.id ?? "",
     ),
     [side, setSide] = useState(trade?.direction ?? "LONG"),
     [phase, setPhase] = useState("Avant");
   const [shots, setShots] = useState(trade?.screenshots ?? []);
+  const symbols = accountSymbols(journal,account);
+  if (trade?.accountId === account && !symbols.includes(trade.instrument)) symbols.push(trade.instrument);
+  const symbol = symbols.includes(preferredSymbol) ? preferredSymbol : symbols[0] ?? "";
   const [details, setDetails] = useState(!!trade);
   const [values, setValues] = useState<Record<string, string>>({
     enteredAt: localDateTime(trade?.enteredAt ?? new Date().toISOString()),
@@ -1464,8 +1467,8 @@ function TradeForm({
     "planScore",
   ];
   const spec =
-    trade?.tickSize && trade.tickValue
-      ? { tickSize: trade.tickSize, tickValue: trade.tickValue }
+    trade?.instrument === symbol && trade.tickSize && trade.tickValue
+      ? { tickSize: trade.tickSize, tickValue: trade.tickValue, category: trade.category, quantityStep: trade.quantityStep, minQuantity: trade.minQuantity }
       : journal.settings.instruments[symbol];
   const basic = [
     ["enteredAt", "Entrée · AAAA-MM-JJTHH:MM ET"],
@@ -1526,7 +1529,7 @@ function TradeForm({
           />
           <Choices
             label="Instrument"
-            values={Object.keys(journal.settings.instruments)}
+            values={symbols}
             value={symbol}
             onChange={setSymbol}
           />
@@ -1817,25 +1820,29 @@ function Curve({ trades }: { trades: Trade[] }) {
   );
 }
 function PositionCalculator({ journal }: { journal: Journal }) {
-  const [symbol, setSymbol] = useState("NQ"),
+  const [account, setAccount] = useState(journal.accounts[0]?.id ?? "");
+  const [preferredSymbol, setSymbol] = useState("NQ"),
     [budget, setBudget] = useState("200"),
     [entry, setEntry] = useState("21400"),
     [stop, setStop] = useState("21390"),
     [fees, setFees] = useState("0");
+  const symbols = accountSymbols(journal, account);
+  const symbol = symbols.includes(preferredSymbol) ? preferredSymbol : symbols[0] ?? "";
   const spec = journal.settings.instruments[symbol];
-  const unit =
+  const unit = spec ?
     (Math.abs(Number(entry) - Number(stop)) * spec.tickValue) / spec.tickSize +
-    Number(fees);
+    Number(fees) : 0;
   const raw = Number(budget) > 0 && unit > 0 ? Number(budget) / unit : 0;
   const size =
-    symbol === "XAUUSD" ? Math.floor(raw * 100) / 100 : Math.floor(raw);
+    positionQuantity(Math.min(raw,journal.accounts.find(a => a.id === account)?.maxContracts ?? 0),spec?.quantityStep ?? 1,spec?.minQuantity ?? 1);
   return (
     <Card>
       <Text style={s.h2}>Taille selon le risque en dollars</Text>
+      <Choices label="Compte" values={journal.accounts.map(a=>a.id)} value={account} onChange={setAccount}/>
       <Choices
         label="Instrument"
         value={symbol}
-        values={Object.keys(journal.settings.instruments)}
+        values={symbols}
         onChange={setSymbol}
       />
       <Input numeric label="Budget ($)" value={budget} onChange={setBudget} />
@@ -1848,7 +1855,7 @@ function PositionCalculator({ journal }: { journal: Journal }) {
         onChange={setFees}
       />
       <Text style={s.value}>
-        {size} {symbol === "XAUUSD" ? "lot(s)" : "contrat(s)"}
+        {size} {spec?.category === "CFD" ? "lot(s)" : "contrat(s)"}
       </Text>
       <Text style={s.body}>
         Risque estimé : {usd(size * unit)}. Compare aussi à la limite de

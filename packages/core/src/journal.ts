@@ -14,6 +14,7 @@ import {
 const positive = z.number().finite().positive();
 const str = z.string().max(20000);
 export const accountSchema = z.object({
+  market: z.enum(["FUTURE","CFD"]).optional(),
   id: z.string().min(1),
   name: z.string().min(1).max(100),
   provider: z.string().max(100),
@@ -29,6 +30,14 @@ export const accountSchema = z.object({
   drawdownCap: z.number().finite().nullable().default(null),
 });
 export type Account = z.infer<typeof accountSchema>;
+export function accountLabel(account: Account) {
+  return account.name + (account.market ? " · " + (account.market === "CFD" ? "CFD" : "Futures") : "");
+}
+export function accountSymbols(journal: Journal, id: string) {
+  const market = journal.accounts.find(a => a.id === id)?.market;
+  return Object.keys(journal.settings.instruments).filter(symbol =>
+    !market || (journal.settings.instruments[symbol].category ?? INSTRUMENTS[symbol]?.category) === market);
+}
 export const ruleSchema = z.object({
   accountId: z.string(),
   enabled: z.boolean(),
@@ -290,6 +299,7 @@ export function newJournal(demo = false): Journal {
     importProfiles: [],
     accounts: ids.map((id, i) => ({
       id,
+      market: demo ? "FUTURE" : undefined,
       name: demo
         ? i
           ? "Tradeify · Démo"

@@ -44,6 +44,7 @@ export async function saveJournal(
           consistencyLimit: a.consistencyLimit,
           minTradingDays: a.minTradingDays,
           maxContracts: a.maxContracts,
+          market: a.market ?? null,
           highWaterMark: a.highWaterMark,
         };
         await tx.account.upsert({

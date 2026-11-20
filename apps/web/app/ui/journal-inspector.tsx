@@ -1,4 +1,5 @@
 "use client";
+import { InstrumentMark } from "./instrument-mark";
 import {
   ArrowUpRight,
   CalendarDays,
@@ -99,7 +100,7 @@ export default function JournalInspector({
             </span>
           </div>
           <div className="inspector-identity">
-            <span className="instrument">{trade.instrument}</span>
+            <InstrumentMark symbol={trade.instrument} />
             <div>
               <h2>{trade.instrument}</h2>
               <span>{localDateTime(trade.enteredAt).replace("T", " ")} ET</span>

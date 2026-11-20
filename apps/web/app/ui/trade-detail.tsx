@@ -1,4 +1,5 @@
-﻿"use client";
+"use client";
+import { InstrumentMark } from "./instrument-mark";
 import { useEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
@@ -140,14 +141,7 @@ export default function TradeDetail({
       <div className="trade-identity">
         <div>
           <div className="trade-identity-line">
-            <span
-              className={
-                "instrument large-instrument " +
-                (trade.instrument.includes("GC") ? "gold" : "")
-              }
-            >
-              {trade.instrument}
-            </span>
+            <InstrumentMark symbol={trade.instrument} />
             <div>
               <h3>{trade.setup}</h3>
               <p>
@@ -184,7 +178,7 @@ export default function TradeDetail({
         <Stat
           label="Position"
           value={num(trade.quantity, Number.isInteger(trade.quantity) ? 0 : 2)}
-          sub="contrat(s) / lot(s)"
+          sub={trade.category === "CFD" ? "lot(s)" : trade.category === "FUTURE" ? "contrat(s)" : "contrat(s) / lot(s)"}
         />
         <Stat label="Durée" value={durationText} />
         <Stat label="Frais" value={money(trade.fees)} />

@@ -38,6 +38,14 @@ try {
   const a = newJournal(true);
   const saved = await saveJournal(alice.id, 0, a);
   assert.equal(saved.revision, 1);
+  const cfd = newJournal();
+  cfd.accounts[0].market = "CFD";
+  cfd.accounts[0].maxContracts = 0.35;
+  const cfdOwner = await db.user.create({data:{email:"cfd-test@edge.local"}});
+  await saveJournal(cfdOwner.id, 0, cfd);
+  const stored = await db.account.findFirstOrThrow({where:{userId:cfdOwner.id}});
+  assert.equal(stored.market, "CFD");
+  assert.equal(stored.maxContracts, 0.35);
   assert.equal(
     await db.trade.count({ where: { account: { userId: alice.id } } }),
     180,
