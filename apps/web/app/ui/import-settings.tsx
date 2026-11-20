@@ -532,6 +532,15 @@ export function Calculator({initialAccountId, onPrepare}: {initialAccountId?: st
           </div>
         </div>
       </div>
+      {spec && (spec.category === "CFD" || a?.market === "CFD") && <div className="cfd-calculation">
+        <h3>Spécifications utilisées · {symbol}</h3>
+        <dl>{[
+          ["Valeur du point par lot", (spec.tickValue/spec.tickSize).toLocaleString("fr-FR",{maximumFractionDigits:8})+" $"],
+          ["Pas de lot", step.toLocaleString("fr-FR",{maximumFractionDigits:8})],
+          ["Minimum par position", (spec.minQuantity ?? step).toLocaleString("fr-FR",{maximumFractionDigits:8})+" lot(s)"],
+          ["Frais par lot", money(fees)], ["Risque par lot, frais inclus",money(perUnit)],
+        ].map(([label,value])=><div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
+      </div>}
       {onPrepare && <button className="btn primary" disabled={!a || size <= 0 || entry <= 0 || stop <= 0 || entry === stop || size > a.maxContracts} onClick={() => onPrepare({status:"DRAFT", accountId:account,instrument:symbol,direction:stop < entry ? "LONG" : "SHORT",entry:String(entry),stop:String(stop),quantity:String(size),fees:String(fees*size),targetKnown:"no"})}>Préparer ce trade dans le journal</button>}
       {a && raw > a.maxContracts && (
         <p className="footnote">

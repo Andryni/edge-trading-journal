@@ -14,6 +14,7 @@ import {
 import { calculateTrade, localDateTime, type Trade } from "@edge/core";
 import {
   Empty,
+  Panel,
   Pill,
   SectionHeading,
   Stat,
@@ -40,6 +41,7 @@ export default function TradeDetail({
   onDelete,
   onSession,
   onReview,
+  onCompleteReview,
 }: {
   trade: Trade;
   accountName: string;
@@ -53,6 +55,7 @@ export default function TradeDetail({
   onDelete: () => void;
   onSession: () => void;
   onReview: () => void;
+  onCompleteReview?: (notes:string) => void;
 }) {
   const page = useRef<HTMLElement>(null);
   const close = useRef(onClose);
@@ -71,6 +74,7 @@ export default function TradeDetail({
     };
   }, []);
   const metrics = calculateTrade(trade);
+  const [reviewNotes,setReviewNotes] = useState(trade.notes ?? "");
   const [tab, setTab] = useState<"execution" | "notes" | "captures">(
     "execution",
   );
@@ -183,6 +187,12 @@ export default function TradeDetail({
         <Stat label="Durée" value={durationText} />
         <Stat label="Frais" value={money(trade.fees)} />
       </dl>
+      {onCompleteReview && <Panel className="guided-review">
+        <h2>Revue de séance</h2>
+        {!!trade.screenshots?.length && <Gallery shots={trade.screenshots}/>}
+        <label>Note de revue<textarea value={reviewNotes} maxLength={20000} rows={3} onChange={e=>setReviewNotes(e.target.value)}/></label>
+        <button className="btn primary" onClick={()=>onCompleteReview(reviewNotes)}>Valider la revue et continuer</button>
+      </Panel>}
       <Tabs
         id="trade-detail-mode"
         label="Détail de l’exécution"

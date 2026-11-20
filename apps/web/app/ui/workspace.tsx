@@ -175,6 +175,7 @@ export default function Workspace() {
     [notice, setNotice] = useState(""),
     [now, setNow] = useState(Date.now());
   const detailScroll = useRef(0);
+  const [guided, setGuided] = useState(false);
   const pendingScroll = useRef<number | null>(null);
   useEffect(() => {
     const media = window.matchMedia("(max-width: 700px)");
@@ -325,6 +326,10 @@ export default function Workspace() {
     (trade) => trade.id === selected?.id,
   );
   const stats = useMemo(() => summarize(filtered), [filtered]);
+  const [preferredEquityUnit, setEquityUnit] = useState<"r" | "net">("r");
+  const equityUnit = stats.riskCount ? preferredEquityUnit : "net";
+  const pendingReviews = useMemo(() => filtered.filter(t => nyDate(t.exitedAt) === date && t.reviewStatus !== "REVIEWED")
+    .sort((a,b) => a.exitedAt.localeCompare(b.exitedAt)), [filtered,date]);
   const instrumentResults = useMemo(() => breakdown(filtered, trade => trade.instrument), [filtered]);
   const comparison = useMemo(
     () =>
@@ -454,6 +459,7 @@ export default function Workspace() {
     setSelected(null);
   }
   function openTrade(trade: Trade, context?: Trade[]) {
+    setGuided(false);
     detailScroll.current = window.scrollY;
     pendingScroll.current = 0;
     setDetailIds(
@@ -1008,19 +1014,27 @@ export default function Workspace() {
                         <div>
                           <h2>Courbe d’équité</h2>
                         </div>
-                        <Pill>R cumulés</Pill>
+                        <div className="period-switch" role="group" aria-label="Unité de la courbe d’équité">
+                          {(["r", "net"] as const).map(unit => (
+                            <button type="button" key={unit} className={equityUnit === unit ? "active" : ""}
+                              disabled={unit === "r" && !stats.riskCount} aria-pressed={equityUnit === unit} onClick={() => setEquityUnit(unit)}>
+                              {unit === "r" ? "R cumulés" : "$ cumulés"}
+                            </button>
+                          ))}
+                        </div>
                       </div>
+                      <p className="equity-coverage">Risque initial renseigné sur {stats.riskCount} / {tradeCount(stats.count)}.</p>
                       <div className="equity-summary">
                         <strong className="mono key-r">
-                          <RollingValue value={stats.r} />
+                          <RollingValue value={stats[equityUnit]} format={equityUnit === "net" ? "usd" : "r"} />
                         </strong>
                         <span
                           className={stats.net >= 0 ? "positive" : "negative"}
                         >
-                          {signedMoney(stats.net)} net
+                          {equityUnit === "r" ? signedMoney(stats.net) + " net" : stats.riskCount ? r(stats.r) : "R indisponible"}
                         </span>
                       </div>
-                      <Equity trades={filtered} animated onDay={inspectDay} />
+                      <Equity trades={filtered} unit={equityUnit} animated onDay={inspectDay} />
                       <div className="chart-foot">
                         <span>Résultats clôturés · New York</span>
                         <SessionPicker days={days} onDay={inspectDay} />
@@ -1068,7 +1082,7 @@ export default function Workspace() {
                           <h2>Séance</h2>
                           <p className="session-account">
                             {a
-                              ? "Risque : " + accountLabel(a)
+                              ? "Compte de risque · " + accountLabel(a)
                               : "Aucun compte configuré"}
                           </p>
                         </div>
@@ -1230,6 +1244,9 @@ export default function Workspace() {
                         Briefing sur {tradeCount(stats.count)}
                       </span>
                       <p>{summary.action}</p>
+                      {pendingReviews.length > 0 && <button className="btn primary full" onClick={() => {
+                        openTrade(pendingReviews[0], pendingReviews); setGuided(true);
+                      }}>Revoir {tradeCount(pendingReviews.length)} · {dateLabel(date)}</button>}
                       <button
                         className="btn primary full"
                         onClick={() => go("Plan & revue")}
@@ -1419,13 +1436,23 @@ export default function Workspace() {
             </div>
             {selected && (
               <TradeDetail
+                key={selected.id}
+                onCompleteReview={guided ? notes => {
+                  update(j => {
+                    const trade = j.trades.find(t => t.id === selected.id);
+                    if (trade) { trade.notes = notes; trade.reviewStatus = "REVIEWED"; }
+                  });
+                  const next = detailSequence.find(t => t.id !== selected.id && t.reviewStatus !== "REVIEWED");
+                  if (next) {setSelected(next); window.scrollTo({top:0,behavior:"instant"});}
+                  else {closeTrade(); setNotice("Revue de séance terminée.");}
+                } : undefined}
                 accountName={
                   data.accounts.find(
                     (account) => account.id === selected.accountId,
                   )?.name ?? "Compte non renseigné"
                 }
                 contextLabel={
-                  journalFocus?.label ??
+                  guided ? "Revue de séance · " + dateLabel(date) : journalFocus?.label ??
                   (view === "Journal" ? "Journal · sélection active" : view)
                 }
                 position={detailPosition}
@@ -1507,10 +1534,12 @@ export default function Workspace() {
 }
 export function Equity({
   trades,
+  unit = "r",
   animated = false,
   onDay,
 }: {
   trades: Trade[];
+  unit?: "r" | "net";
   animated?: boolean;
   onDay?: (day: string) => void;
 }) {
@@ -1519,19 +1548,19 @@ export function Equity({
   const days = groupByDay(trades);
   let cumulative = 0;
   const points = [
-    { date: "Départ", r: 0 },
+    { date: "Départ", value: 0 },
     ...Object.entries(days)
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([date, d]) => ({
         date,
-        r: (cumulative += d.r),
+        value: (cumulative += d[unit]),
       })),
   ];
   return (
     <div
       className={"chart" + (animated ? " equity-chart-animated" : "")}
       role="img"
-      aria-label="Courbe du résultat cumulé des trades clôturés, en R-multiples"
+      aria-label={`Courbe du résultat cumulé des trades clôturés, en ${unit === "r" ? "R-multiples" : "dollars"}`}
     >
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart
@@ -1565,7 +1594,8 @@ export function Equity({
             tick={{ fill: "var(--muted)", fontSize: 12 }}
           />
           <YAxis
-            tickFormatter={(v) => v + "R"}
+            width={unit === "net" ? 80 : 60}
+            tickFormatter={(v: number) => v.toLocaleString("fr-FR") + (unit === "r" ? "R" : " $")}
             tick={{ fill: "var(--muted)", fontSize: 12 }}
             axisLine={false}
             tickLine={false}
@@ -1581,12 +1611,12 @@ export function Equity({
                 ? "Départ"
                 : String(date).split("-").reverse().join("/")
             }
-            formatter={(v) => [r(Number(v)), "Résultat cumulé"]}
+            formatter={(v) => [unit === "r" ? r(Number(v)) : signedMoney(Number(v)), "Résultat cumulé"]}
             cursor={{ stroke: "var(--accent)", strokeDasharray: "4 4" }}
           />
           <Area
             type="monotone"
-            dataKey="r"
+            dataKey="value"
             stroke="var(--accent)"
             strokeWidth={3}
             activeDot={{
@@ -1747,7 +1777,7 @@ function Analytics({
               <option value="net">Dollars ($)</option><option value="r">Multiples de risque (R)</option>
             </select></Field>
           </div>
-          <p className="footnote">{dimension === "heure" ? "Heure d’entrée à New York · " : ""}{unit === "r" ? "Calculé sur les trades dont le risque initial est connu." : "Gains et pertes après frais."}</p>
+          <p className="footnote">{dimension === "heure" ? "Heure d’entrée à New York · " : ""}{unit === "r" ? `Risque initial renseigné sur ${stats.riskCount} / ${tradeCount(stats.count)}.` : "Gains et pertes après frais."}</p>
           {groups.length ? <div className="performance-bars">{groups.map(group => {
             const value = group[unit];
             const measurable = unit === "net" || group.riskCount > 0;

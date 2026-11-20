@@ -141,3 +141,17 @@
 .account-actions {display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-top:16px}
 .account-actions .account-delete {background:#b82d47;color:#fff;border-color:#b82d47}
 .account-removal-counts {padding-left:20px;margin:14px 0;color:var(--muted);list-style:disc}
+.equity-coverage,.performance-rail .session-command .session-account,.chart-foot>span {color:var(--muted);font:500 12px/1.5 var(--font-body)}
+.performance-rail .session-command .session-account {display:inline-block;padding:4px 8px;border:1px solid var(--border-strong);border-radius:6px}
+.guided-review,.guided-review label {display:grid;gap:10px}.guided-review .btn{justify-self:start}
+.cfd-calculation {margin:14px 0;padding:14px;border:1px solid var(--border);border-radius:9px}
+.cfd-calculation dl {display:flex;flex-wrap:wrap;gap:14px}.cfd-calculation dt{color:var(--muted);font-size:12px}.cfd-calculation dd{margin:3px 0;font-variant-numeric:tabular-nums}
+.mobile-journal-toggle.btn {display:none}
+@media(max-width:700px){
+  .mobile-journal-toggle.btn {display:inline-flex;align-self:start;margin:5px 0}
+  .journal-stats:not(.mobile-expanded),.journal-panel:not(.mobile-expanded) .journal-tools,.journal-panel:not(.mobile-expanded) .journal-filter-row,.journal-panel:not(.mobile-expanded) .journal-query>:not(.journal-search){display:none}
+  .journal-panel:not(.mobile-expanded) .journal-query {grid-template-columns:1fr}
+  .app-shell[data-view="Journal"] .demo-banner,.app-shell[data-view="Journal"] .page-description {display:none}
+  .app-shell[data-view="Journal"] .page-heading {margin:4px 0;padding:4px 0}
+  .app-shell[data-view="Journal"] .journal-selection-line {flex-wrap:wrap}
+}

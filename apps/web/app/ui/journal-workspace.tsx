@@ -1,5 +1,5 @@
 ﻿"use client";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   ArrowLeft,
   ArrowUpRight,
@@ -70,6 +70,7 @@ export default function JournalWorkspace({
   onOpen: (trade: Trade, context?: Trade[]) => void;
 }) {
   const update = useApp(s => s.update);
+  const [toolsOpen,setToolsOpen] = useState(false);
   const month =
     options.month ??
     contextTrades
@@ -142,11 +143,13 @@ export default function JournalWorkspace({
           </button>
         </div>
       )}
-      <dl className="stat-strip journal-stats">
+      <button type="button" className="btn secondary mobile-journal-toggle" aria-expanded={toolsOpen}
+        onClick={()=>setToolsOpen(!toolsOpen)}>Filtres, statistiques et export</button>
+      <dl className={"stat-strip journal-stats" + (toolsOpen ? " mobile-expanded" : "")}>
         <Stat
           label="Résultat de la sélection"
           value={stats.riskCount ? r(stats.r) : "—"}
-          sub={signedMoney(stats.net)}
+          sub={signedMoney(stats.net) + " · risque renseigné : " + stats.riskCount + "/" + stats.count}
           tone={stats.r > 0 ? "positive" : stats.r < 0 ? "negative" : ""}
         />
         <Stat
@@ -173,7 +176,7 @@ export default function JournalWorkspace({
         />
       </dl>
       <div className="journal-review-layout">
-        <Panel className="journal-panel">
+        <Panel className={"journal-panel" + (toolsOpen ? " mobile-expanded" : "")}>
           <div className="journal-navigation">
             <Tabs
               id="journal-mode"
@@ -288,6 +291,10 @@ export default function JournalWorkspace({
             <button className="btn secondary" onClick={() => {const name = window.prompt("Nom de cette vue du tableau", "Ma revue");if(name?.trim())update(j => {j.savedViews.push({id:crypto.randomUUID(),name:name.trim().slice(0,100),filters:{search,sort,result:options.result,plan:options.plan,mode:options.mode,exitReason:options.exitReason ?? "all",review:options.review ?? "all"}});});}}>Enregistrer cette vue</button>
           </div>
           <div className="journal-selection-line">
+            {options.result !== "all" && <span>{{gain:"Gains",loss:"Pertes",flat:"Neutres"}[options.result]}</span>}
+            {options.plan !== "all" && <span>{{respected:"Plan respecté",offplan:"Hors plan",unknown:"Plan non renseigné"}[options.plan]}</span>}
+            {options.exitReason && options.exitReason !== "all" && <span>{EXIT_REASONS[options.exitReason as keyof typeof EXIT_REASONS] ?? options.exitReason}</span>}
+            {options.review && options.review !== "all" && <span>{options.review === "pending" ? "À revoir" : "Revue terminée"}</span>}
             <span role="status" aria-live="polite">
               {trades.length} {trades.length === 1 ? "exécution" : "exécutions"}
             </span>
