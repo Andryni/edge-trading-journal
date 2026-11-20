@@ -155,3 +155,40 @@
   .app-shell[data-view="Journal"] .page-heading {margin:4px 0;padding:4px 0}
   .app-shell[data-view="Journal"] .journal-selection-line {flex-wrap:wrap}
 }
+.next-action .session-actions {display:grid;gap:9px}
+.performance-rail .next-action .session-actions .btn {justify-content:space-between;text-align:left;padding:10px 12px;min-height:40px;margin:0;font-size:12px}
+.session-actions .btn small {display:block;margin-top:2px;font-size:11px;font-weight:450}
+.session-analysis-links {display:grid;margin-top:14px;padding-top:6px;border-top:1px solid var(--border)}
+.performance-rail .next-action .session-analysis-links .text-btn {display:flex;width:100%;align-items:center;justify-content:space-between;min-height:36px;margin:0;color:var(--muted);font-size:12px}
+.performance-rail .next-action .session-analysis-links .text-btn:not(:disabled):hover {color:var(--text)}
+
+.trade-review-page .trade-reading .reading-list {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+}
+
+.trade-reading .reading-list .stat {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 3px 12px;
+  padding: 8px 0;
+}
+
+.trade-reading .reading-list .stat + .stat {
+  border-top: 1px solid var(--border);
+}
+
+.trade-reading .reading-list .stat dt {
+  font-size: 12px;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.trade-review-page .trade-reading .reading-list .stat dd {
+  margin: 0 0 0 auto;
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: normal;
+}

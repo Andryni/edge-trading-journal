@@ -1244,15 +1244,18 @@ export default function Workspace() {
                         Briefing sur {tradeCount(stats.count)}
                       </span>
                       <p>{summary.action}</p>
+                      <div className="session-actions">
                       {pendingReviews.length > 0 && <button className="btn primary full" onClick={() => {
                         openTrade(pendingReviews[0], pendingReviews); setGuided(true);
-                      }}>Revoir {tradeCount(pendingReviews.length)} · {dateLabel(date)}</button>}
+                      }}><span>Revoir {tradeCount(pendingReviews.length)}<small>{dateLabel(date)}</small></span><ArrowRight size={16} aria-hidden="true" /></button>}
                       <button
-                        className="btn primary full"
+                        className={`btn full ${pendingReviews.length ? "secondary" : "primary"}`}
                         onClick={() => go("Plan & revue")}
                       >
                         Préparer la séance <ArrowUpRight size={16} />
                       </button>
+                      </div>
+                      <div className="session-analysis-links">
                       <button
                         className="text-btn"
                         onClick={() => go("Leak Finder")}
@@ -1276,6 +1279,7 @@ export default function Workspace() {
                         Revoir les pertes{" "}
                         <ArrowUpRight size={14} aria-hidden="true" />
                       </button>
+                      </div>
                     </Panel>
                   </aside>
                   <div className="performance-secondary">
