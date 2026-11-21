@@ -9,7 +9,7 @@ function candle(index: number, fraction = 1) {
   const open = price(index), close = price(index + fraction);
   const high = Math.min(open, close) - 3 - 4 * Math.abs(Math.sin(index * 1.8)) * fraction;
   const low = Math.max(open, close) + 3 + 5 * Math.abs(Math.cos(index * 1.3)) * fraction;
-  return { open, close, high, low, color: close <= open ? "#69e1cd" : "#aa8df4" };
+  return { open, close, high, low, color: close <= open ? "#69e1cd" : "#ff7a8a" };
 }
 
 // An illustrative price stream, isolated from journal data and authentication.
@@ -58,6 +58,6 @@ export default function LoginMarket({ paused }: { paused: boolean }) {
         <line y1={b.high} y2={b.low} stroke="currentColor" strokeWidth="1.4"/>
         <rect x="-4" width="8" y={Math.min(b.open,b.close)} height={Math.max(2,Math.abs(b.close-b.open))} rx="1" fill="currentColor"/>
       </g>;
-    })}<polyline points={Array.from({length:count},(_,i)=>`${i*pitch},${(price(i+1)+price(i-.6)+price(i-1.2))/3-12}`).join(" ")} fill="none" stroke="#9fc5ff" strokeWidth="1.8" strokeLinejoin="round"/></g>
+    })}<polyline points={Array.from({length:count},(_,i)=>`${i*pitch},${(price(i+1)+price(i-.6)+price(i-1.2))/3-12}`).join(" ")} fill="none" stroke="#8fd6bd" strokeWidth="1.8" strokeLinejoin="round"/></g>
   </svg>;
 }

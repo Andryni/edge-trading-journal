@@ -3,12 +3,20 @@ import { useMemo, useState } from "react";
 import {
   ArrowLeft,
   ArrowUpRight,
+  BookmarkPlus,
   Columns3,
   Download,
   Search,
+  Trash2,
   X,
 } from "lucide-react";
-import { summarize, nyDate, type Journal, type Trade } from "@edge/core";
+import {
+  calculateTrade,
+  nyDate,
+  summarize,
+  type Journal,
+  type Trade,
+} from "@edge/core";
 import JournalCalendar from "./journal-calendar";
 import JournalInspector from "./journal-inspector";
 import { EXIT_REASONS } from "@edge/core";
@@ -16,6 +24,7 @@ import { useApp } from "../../lib/client-store";
 import { exportCsv } from "../../lib/files";
 import {
   Field,
+  Modal,
   Panel,
   SectionHeading,
   Stat,
@@ -51,10 +60,12 @@ export default function JournalWorkspace({
   onClearFocus,
   onScope,
   onOpen,
+  onDelete,
 }: {
   trades: Trade[];
   journal: Journal;
   onEdit: (trade: Trade) => void;
+  onDelete: (trade: Trade) => void;
   onReview: (day: string) => void;
   total: number;
   options: JournalOptions;
@@ -71,6 +82,7 @@ export default function JournalWorkspace({
 }) {
   const update = useApp(s => s.update);
   const [toolsOpen,setToolsOpen] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<Trade | null>(null);
   const month =
     options.month ??
     contextTrades
@@ -239,7 +251,7 @@ export default function JournalWorkspace({
                 type="search"
                 name="journal-search"
                 aria-label="Rechercher une exécution"
-                placeholder="Instrument, setup, note ou émotion…"
+                placeholder="Instrument ou setup…"
                 value={search}
                 onChange={(event) => onSearch(event.target.value)}
               />
@@ -285,10 +297,13 @@ export default function JournalWorkspace({
             </Field>
           </div>
           <div className="journal-filter-row">
-            <Field label="Motif de clôture"><select value={options.exitReason ?? "all"} onChange={e => onOptions({...options,exitReason:e.target.value})}><option value="all">Tous les motifs</option>{Object.entries(EXIT_REASONS).map(([k,label]) => <option key={k} value={k}>{label}</option>)}</select></Field>
-            <Field label="Revue du trade"><select value={options.review ?? "all"} onChange={e => onOptions({...options,review:e.target.value as JournalOptions["review"]})}><option value="all">Toutes les revues</option><option value="pending">À revoir</option><option value="reviewed">Terminées</option></select></Field>
-            <Field label="Vues du tableau"><select value="" onChange={e => {const view = journal.savedViews.find(v => v.id === e.target.value); if(view){const f=view.filters;onSearch(f.search ?? "");onSort(f.sort ?? "date");onOptions({...options,result:f.result as JournalOptions["result"],plan:f.plan as JournalOptions["plan"],mode:f.mode as JournalOptions["mode"],exitReason:f.exitReason,review:f.review as JournalOptions["review"]});}}}><option value="">Charger une vue…</option>{journal.savedViews.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}</select></Field>
-            <button className="btn secondary" onClick={() => {const name = window.prompt("Nom de cette vue du tableau", "Ma revue");if(name?.trim())update(j => {j.savedViews.push({id:crypto.randomUUID(),name:name.trim().slice(0,100),filters:{search,sort,result:options.result,plan:options.plan,mode:options.mode,exitReason:options.exitReason ?? "all",review:options.review ?? "all"}});});}}>Enregistrer cette vue</button>
+            <p className="journal-filter-eyebrow"><i aria-hidden="true" />Affiner la sélection</p>
+            <div className="journal-filter-fields">
+              <Field label="Motif de clôture"><select value={options.exitReason ?? "all"} onChange={e => onOptions({...options,exitReason:e.target.value})}><option value="all">Tous les motifs</option>{Object.entries(EXIT_REASONS).map(([k,label]) => <option key={k} value={k}>{label}</option>)}</select></Field>
+              <Field label="Revue du trade"><select value={options.review ?? "all"} onChange={e => onOptions({...options,review:e.target.value as JournalOptions["review"]})}><option value="all">Toutes les revues</option><option value="pending">À revoir</option><option value="reviewed">Terminées</option></select></Field>
+              <Field label="Vues du tableau"><select value="" onChange={e => {const view = journal.savedViews.find(v => v.id === e.target.value); if(view){const f=view.filters;onSearch(f.search ?? "");onSort(f.sort ?? "date");onOptions({...options,result:f.result as JournalOptions["result"],plan:f.plan as JournalOptions["plan"],mode:f.mode as JournalOptions["mode"],exitReason:f.exitReason,review:f.review as JournalOptions["review"]});}}}><option value="">Charger une vue…</option>{journal.savedViews.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}</select></Field>
+            </div>
+            <button className="btn secondary journal-save-view" onClick={() => {const name = window.prompt("Nom de cette vue du tableau", "Ma revue");if(name?.trim())update(j => {j.savedViews.push({id:crypto.randomUUID(),name:name.trim().slice(0,100),filters:{search,sort,result:options.result,plan:options.plan,mode:options.mode,exitReason:options.exitReason ?? "all",review:options.review ?? "all"}});});}}><BookmarkPlus size={14} aria-hidden="true" />Enregistrer la vue</button>
           </div>
           <div className="journal-selection-line">
             {options.result !== "all" && <span>{{gain:"Gains",loss:"Pertes",flat:"Neutres"}[options.result]}</span>}
@@ -347,6 +362,8 @@ export default function JournalWorkspace({
                 selectedId={inspected?.id}
                 sort={sort}
                 onSort={onSort}
+                onEdit={onEdit}
+                onDelete={setPendingDelete}
               />
             ) : (
               <div className="journal-groups">
@@ -381,6 +398,8 @@ export default function JournalWorkspace({
                     selectedId={inspected?.id}
                     onScope={onScope}
                     onOpen={(trade) => onOpen(trade, trades)}
+                    onEdit={onEdit}
+                    onDelete={setPendingDelete}
                   />
                 ))}
                 {groups.length > options.groupLimit && (
@@ -411,9 +430,54 @@ export default function JournalWorkspace({
           day={day}
           onOpen={onOpen}
           onEdit={onEdit}
+          onDelete={setPendingDelete}
           onReview={onReview}
         />
       </div>
+      {pendingDelete && (
+        <Modal
+          title="Supprimer cette exécution ?"
+          onClose={() => setPendingDelete(null)}
+        >
+          <div className="journal-delete-summary">
+            <span className="journal-delete-icon" aria-hidden="true">
+              <Trash2 size={19} />
+            </span>
+            <div>
+              <strong>
+                {pendingDelete.instrument} · {pendingDelete.setup}
+              </strong>
+              <p>
+                {dateLabel(nyDate(pendingDelete.exitedAt))} ·{" "}
+                {signedMoney(calculateTrade(pendingDelete).net)}
+              </p>
+            </div>
+          </div>
+          <p className="journal-delete-note">
+            L’exécution sera retirée du journal. Une sauvegarde complète est
+            téléchargée avant la suppression.
+          </p>
+          <div className="modal-actions">
+            <button
+              type="button"
+              className="btn secondary"
+              onClick={() => setPendingDelete(null)}
+            >
+              Annuler
+            </button>
+            <button
+              type="button"
+              className="btn danger-confirm"
+              onClick={() => {
+                onDelete(pendingDelete);
+                setPendingDelete(null);
+              }}
+            >
+              Supprimer définitivement
+            </button>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }
@@ -427,6 +491,8 @@ function JournalGroup({
   onOpen,
   onSelect,
   selectedId,
+  onEdit,
+  onDelete,
 }: {
   group: ReturnType<typeof journalGroups>[number];
   weekly: boolean;
@@ -437,6 +503,8 @@ function JournalGroup({
   onOpen: (trade: Trade) => void;
   onSelect: (trade: Trade) => void;
   selectedId?: string;
+  onEdit: (trade: Trade) => void;
+  onDelete: (trade: Trade) => void;
 }) {
   const label = (weekly ? "Semaine du " : "Séance du ") + dateLabel(group.date);
   return (
@@ -506,6 +574,8 @@ function JournalGroup({
             caption={label}
             onSelect={onSelect}
             selectedId={selectedId}
+            onEdit={onEdit}
+            onDelete={onDelete}
           />
         </div>
       )}

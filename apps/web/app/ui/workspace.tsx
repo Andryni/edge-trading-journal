@@ -21,6 +21,9 @@ import {
   PolarGrid,
   PolarAngleAxis,
   PolarRadiusAxis,
+  ScatterChart,
+  Scatter,
+  ReferenceLine,
 } from "recharts";
 import {
   Activity,
@@ -410,6 +413,7 @@ export default function Workspace() {
       )
     : 0;
   const plan = data.plans.find((p) => p.date === date);
+  const planDone = plan?.checks.filter(Boolean).length ?? 0;
   const guard = a ? guardStatus(data, a.id, new Date(now).toISOString()) : null;
   function restoreJournal() {
     if (!journalFocus) return;
@@ -497,10 +501,22 @@ export default function Workspace() {
     setSelected((current) => (current?.id === t.id ? t : current));
     setNotice(app.guest ? "Exécution ajoutée à la démonstration." : "Exécution enregistrée · synchronisation en attente.");
   }
+  async function removeTrade(t: Trade) {
+    try {
+      await exportBackup(data);
+      update((j) => (j.trades = j.trades.filter((p) => p.id !== t.id)));
+      if (selected?.id === t.id) closeTrade();
+      setNotice(
+        "Trade retiré du journal. Une sauvegarde complète a été téléchargée.",
+      );
+    } catch (e) {
+      setNotice(String(e));
+    }
+  }
   if (!app.loaded)
     return (
       <div className="loading-screen">
-        <img src="/brand/edge-mark.svg?v=spectrum2" alt="EDGE" width={56} height={56} />
+        <img src="/brand/edge-mark.svg?v=candles1" alt="EDGE" width={56} height={56} />
         <p>Ouverture de ton journal…</p>
       </div>
     );
@@ -528,7 +544,7 @@ export default function Workspace() {
               go("Cockpit");
             }}
           >
-            <img src="/brand/edge-logo.svg?v=spectrum2" alt="EDGE — accueil du cockpit" width={176} height={44} />
+            <img src="/brand/edge-logo.svg?v=candles1" alt="EDGE — accueil du cockpit" width={176} height={44} />
           </a>
           <div className="brand-sub">Risque · Exécution · Revue</div>
           <div className="workspace">
@@ -1062,7 +1078,7 @@ export default function Workspace() {
                         columns={["setup", "plan"]}
                         trades={[...filtered]
                           .sort((a, b) => b.exitedAt.localeCompare(a.exitedAt))
-                          .slice(0, 5)}
+                          .slice(0, 3)}
                         onOpen={openTrade}
                       />
                     </Panel>
@@ -1080,11 +1096,12 @@ export default function Workspace() {
                       <div className="session-command-head">
                         <div>
                           <h2>Séance</h2>
-                          <p className="session-account">
-                            {a
-                              ? "Compte de risque · " + accountLabel(a)
-                              : "Aucun compte configuré"}
-                          </p>
+                          <div className="session-account">
+                            <span>Compte de risque</span>
+                            <strong title={a ? accountLabel(a) : undefined}>
+                              {a ? accountLabel(a) : "Aucun compte configuré"}
+                            </strong>
+                          </div>
                         </div>
                         <DatePicker
                           label="Séance · New York"
@@ -1095,7 +1112,12 @@ export default function Workspace() {
                       </div>
                       <div className="session-command-body">
                         <div className="session-pnl">
-                          <span className="eyebrow">Résultat clôturé</span>
+                          <div className="session-pnl-top">
+                            <span className="eyebrow">Résultat clôturé</span>
+                            <span className="session-trade-count">
+                              {tradeCount(today.count)}
+                            </span>
+                          </div>
                           <strong
                             className={
                               "mono key-r " +
@@ -1104,9 +1126,7 @@ export default function Workspace() {
                           >
                             <RollingValue value={today.r} />
                           </strong>
-                          <p>
-                            {signedMoney(today.net)} · {tradeCount(today.count)}
-                          </p>
+                          <p>{signedMoney(today.net)}</p>
                         </div>
                         <div className="session-risk">
                           {prop && a ? (
@@ -1191,20 +1211,33 @@ export default function Workspace() {
                           )}
                         </div>
                         <div className="session-readiness">
-                          <div className="readiness-state">
-                            <ShieldCheck size={18} aria-hidden="true" />
+                          <div
+                            className={
+                              "readiness-state" +
+                              (plan?.validatedAt ? " is-valid" : "")
+                            }
+                          >
+                            <ShieldCheck size={16} aria-hidden="true" />
                             <div>
                               <span>Préparation de la séance</span>
                               <strong>
-                                {plan?.validatedAt
-                                  ? "✓ Validée"
-                                  : "○ À compléter"}{" "}
-                                · {plan?.checks.filter(Boolean).length ?? 0}/6
+                                {plan?.validatedAt ? "Validée" : "À compléter"}
                               </strong>
                             </div>
+                            <span className="prep-count">{planDone}/6</span>
+                          </div>
+                          <div className="prep-meter" aria-hidden="true">
+                            {Array.from({ length: 6 }, (_, index) => (
+                              <span
+                                key={index}
+                                data-on={
+                                  plan?.checks[index] ? "true" : undefined
+                                }
+                              />
+                            ))}
                           </div>
                           <button
-                            className="btn secondary full"
+                            className="btn secondary full session-prep-btn"
                             onClick={() => go("Plan & revue")}
                           >
                             Revoir la préparation <ArrowUpRight size={15} />
@@ -1212,12 +1245,12 @@ export default function Workspace() {
                           {a && (
                             <button
                               className={
-                                "btn full " +
-                                (guard?.locked ? "lock-button" : "secondary")
+                                "session-guard-link" +
+                                (guard?.locked ? " is-locked" : "")
                               }
                               onClick={() => setGuardAccount(a.id)}
                             >
-                              <ShieldCheck size={16} aria-hidden="true" />
+                              <ShieldCheck size={14} aria-hidden="true" />
                               {guard?.locked
                                 ? "Lock Guard actif · ouvrir la pause"
                                 : "Lock Guard · limites"}
@@ -1368,6 +1401,7 @@ export default function Workspace() {
                 {!!data.drafts.length && <Panel className="pending-trades"><h2>Positions ouvertes et brouillons</h2><p className="muted">Ces éléments sont exclus du résultat clôturé.</p>{data.drafts.map(d => <button className="draft-item" key={d.id} onClick={() => {setEditingDraft(d); setEditing(d.sourceTradeId ? data.trades.find(t => t.id === d.sourceTradeId) ?? "new" : "new");}}><span>{d.status === "OPEN" ? "Ouvert" : "Brouillon"}</span><strong>{d.values.instrument} · {d.values.direction === "SHORT" ? "Vente" : "Achat"}</strong><small>{data.accounts.find(a => a.id === d.accountId)?.name} · {d.values.setup || "Contexte à compléter"}</small><b>Reprendre →</b></button>)}</Panel>}
                 <JournalWorkspace
                   journal={data}
+                  onDelete={(trade) => void removeTrade(trade)}
                   onEdit={(trade) => {setEditingDraft(undefined); setEditing(trade);}}
                   onReview={(day) => {
                     setDate(day);
@@ -1485,18 +1519,7 @@ export default function Workspace() {
                 onEdit={() => {
                   setEditing(selected);
                 }}
-                onDelete={async () => {
-                  try {await exportBackup(data);
-                  update(
-                    (j) =>
-                      (j.trades = j.trades.filter((t) => t.id !== selected.id)),
-                  );
-                  closeTrade();
-                  setNotice(
-                    "Trade retiré du journal. Une sauvegarde complète a été téléchargée.",
-                  );
-                  }catch(e){setNotice(String(e));}
-                }}
+                onDelete={() => void removeTrade(selected)}
               />
             )}
           </main>
@@ -1674,6 +1697,66 @@ function Analytics({
       return { date: point.date, equity: point.usd, drawdown: point.usd - peak };
     })];
   }, [stats]);
+  const monthFormat = useMemo(() => new Intl.DateTimeFormat("fr-FR", {
+    month: "short",
+    year: "2-digit",
+    timeZone: "UTC",
+  }), []);
+  const monthly = useMemo(() => {
+    const rows = new Map<string, { month: string; label: string; net: number; count: number; wins: number }>();
+    for (const trade of trades) {
+      const month = nyDate(trade.exitedAt).slice(0, 7);
+      const metrics = calculateTrade(trade);
+      const row = rows.get(month) ?? {
+        month,
+        label: monthFormat.format(new Date(month + "-01T12:00:00Z")),
+        net: 0,
+        count: 0,
+        wins: 0,
+      };
+      row.net += metrics.net;
+      row.count += 1;
+      if (metrics.net > 0) row.wins += 1;
+      rows.set(month, row);
+    }
+    return [...rows.values()].sort((a, b) => a.month.localeCompare(b.month));
+  }, [trades, monthFormat]);
+  const resultDistribution = useMemo(() => {
+    const rows = [
+      { label: "≤ −2R", count: 0 },
+      { label: "−2 à −1R", count: 0 },
+      { label: "−1 à 0R", count: 0 },
+      { label: "0 à 1R", count: 0 },
+      { label: "1 à 2R", count: 0 },
+      { label: "≥ 2R", count: 0 },
+    ];
+    for (const trade of trades) {
+      const metrics = calculateTrade(trade);
+      if (!metrics.riskKnown) continue;
+      const value = metrics.realizedR;
+      const index = value <= -2 ? 0 : value <= -1 ? 1 : value < 0 ? 2 : value < 1 ? 3 : value < 2 ? 4 : 5;
+      rows[index].count += 1;
+    }
+    return rows;
+  }, [trades]);
+  const sessionRows = useMemo(() =>
+    breakdown(trades, (trade) => trade.session?.trim() || "Non renseigné", 0)
+      .map((group) => ({ ...group, winRatePct: group.winRate * 100 }))
+      .sort((a, b) => b.winRatePct - a.winRatePct),
+  [trades]);
+  const planPoints = useMemo(() => trades.flatMap((trade) => {
+    if (!isPlanRated(trade)) return [];
+    const metrics = calculateTrade(trade);
+    if (!metrics.riskKnown) return [];
+    return [{
+      id: trade.id,
+      score: trade.planScore!,
+      r: metrics.realizedR,
+      net: metrics.net,
+      instrument: trade.instrument,
+      setup: trade.setup,
+    }];
+  }), [trades]);
   const [dimension, setDimension] = useState("session");
   const [unit, setUnit] = useState<"net" | "r">("net");
   const hourFormat = useMemo(() => new Intl.DateTimeFormat("fr-FR", {
@@ -1756,14 +1839,146 @@ function Analytics({
                 <AreaChart data={history} margin={{ top: 12, bottom: 4, left: 0, right: 15 }}>
                   <CartesianGrid vertical={false} stroke="var(--border)" strokeDasharray="3 5" />
                   <XAxis dataKey="date" minTickGap={40} tickFormatter={date => date === "Départ" ? date : date.slice(8) + "/" + date.slice(5, 7)} tick={{ fill: "var(--muted)", fontSize: 11 }} tickLine={false} axisLine={false} />
-                  <YAxis domain={equity ? ["auto", "auto"] : ["auto", 0]} tick={{ fill: "var(--muted)", fontSize: 11 }} tickLine={false} axisLine={false} />
+                  <YAxis domain={equity ? ["auto", "auto"] : ["auto", 0]} width={54} tickFormatter={(value) => { const n = Number(value); return (Math.abs(n) >= 1000 ? Math.round(n / 1000) + "k" : Math.round(n)) + " $"; }} tick={{ fill: "var(--muted)", fontSize: 10 }} tickLine={false} axisLine={false} />
+                  {!equity && <ReferenceLine y={0} stroke="var(--border-strong)" />}
                   <Tooltip formatter={value => [money(Number(value)), title]} contentStyle={{background: "var(--surface)", borderColor: "var(--border-strong)"}} />
                   <Area type="linear" dataKey={key} stroke={color} strokeWidth={2} fill={color} fillOpacity={0.15} isAnimationActive={false} />
                 </AreaChart>
               </ResponsiveContainer>
-            </div> : <p className="empty">Aucun trade clôturé sur cette sélection.</p>}
-          </Panel>;
+                        </div> : <p className="empty">Aucun trade clôturé sur cette sélection.</p>}</Panel>;
         })}
+      </div>
+      <div className="analysis-charts-grid">
+        <Panel className="analysis-chart-card">
+          <div className="panel-heading">
+            <div>
+              <h2>Résultat par mois</h2>
+              <p className="footnote">Net après frais · clôtures New York.</p>
+            </div>
+            {monthly.length > 0 && <div className="plot-readout"><small>Net sur la période</small><strong>{signedMoney(monthly.reduce((sum, row) => sum + row.net, 0))}</strong></div>}
+          </div>
+          {monthly.length ? (
+            <div className="chart" role="img" aria-label="Résultat net par mois">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={monthly} margin={{ top: 10, right: 8, bottom: 0, left: 0 }}>
+                  <CartesianGrid vertical={false} stroke="var(--border)" strokeDasharray="3 5" />
+                  <XAxis dataKey="label" tick={{ fill: "var(--muted)", fontSize: 10 }} tickLine={false} axisLine={false} minTickGap={12} />
+                  <YAxis tickFormatter={(value) => Math.abs(Number(value)) >= 1000 ? Math.round(Number(value) / 1000) + "k$" : Math.round(Number(value)) + "$"} tick={{ fill: "var(--muted)", fontSize: 10 }} tickLine={false} axisLine={false} width={44} />
+                  <Tooltip
+                    formatter={(value) => [money(Number(value)), "Résultat net"]}
+                    labelFormatter={(label) => String(label)}
+                    contentStyle={{ background: "var(--surface)", border: "1px solid var(--border-strong)", borderRadius: 8 }}
+                    cursor={{ fill: "#ffffff04" }}
+                  />
+                  <ReferenceLine y={0} stroke="var(--muted)" strokeOpacity={0.65} />
+                  <Bar dataKey="net" radius={[3, 3, 0, 0]} maxBarSize={58} isAnimationActive={false}>
+                    {monthly.map((row) => <Cell key={row.month} fill={row.net >= 0 ? "var(--green)" : "var(--red)"} />)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          ) : <p className="empty">Aucun mois clôturé sur cette sélection.</p>}
+        </Panel>
+        <Panel className="analysis-chart-card">
+          <div className="panel-heading">
+            <div>
+              <h2>Distribution des résultats</h2>
+              <p className="footnote">Nombre de trades par tranche de R · risque initial renseigné.</p>
+            </div>
+            {stats.riskCount > 0 && <div className="plot-readout"><small>Risque connu</small><strong>{tradeCount(stats.riskCount)}</strong></div>}
+          </div>
+          {stats.riskCount ? (
+            <div className="chart" role="img" aria-label="Distribution des résultats par tranche de R">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={resultDistribution} margin={{ top: 20, right: 8, bottom: 0, left: 0 }}>
+                  <CartesianGrid vertical={false} stroke="var(--border)" strokeDasharray="3 5" />
+                  <XAxis dataKey="label" interval={0} tick={{ fill: "var(--muted)", fontSize: 10 }} tickLine={false} axisLine={false} />
+                  <YAxis allowDecimals={false} tick={{ fill: "var(--muted)", fontSize: 10 }} tickLine={false} axisLine={false} width={24} />
+                  <Tooltip
+                    formatter={(value) => [tradeCount(Number(value)), "Effectif"]}
+                    labelFormatter={(label) => String(label)}
+                    contentStyle={{ background: "var(--surface)", border: "1px solid var(--border-strong)", borderRadius: 8 }}
+                    cursor={{ fill: "#ffffff04" }}
+                  />
+                  <Bar dataKey="count" label={{ position: "top", fill: "var(--text)", fontSize: 11 }} radius={[3, 3, 0, 0]} maxBarSize={54} isAnimationActive={false}>
+                    {resultDistribution.map((row, index) => <Cell key={row.label} fill={index >= 3 ? "var(--green)" : "var(--red)"} />)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          ) : <p className="empty">Renseigne le risque initial pour afficher la distribution en R.</p>}
+        </Panel>
+        <Panel className="analysis-chart-card">
+          <div className="panel-heading">
+            <div>
+              <h2>Réussite par session</h2>
+              <p className="footnote">Taux de trades gagnants · seuil de lecture à 50 %.</p>
+            </div>
+          </div>
+          {sessionRows.length ? (
+            <div className="chart" role="img" aria-label="Taux de réussite par session">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={sessionRows} layout="vertical" margin={{ top: 4, right: 48, bottom: 0, left: 0 }}>
+                  <CartesianGrid horizontal={false} stroke="var(--border)" strokeDasharray="3 5" />
+                  <XAxis type="number" domain={[0, 100]} tickFormatter={(value) => `${value}%`} tick={{ fill: "var(--muted)", fontSize: 10 }} tickLine={false} axisLine={false} />
+                  <YAxis type="category" dataKey="label" width={96} tick={{ fill: "var(--muted)", fontSize: 10 }} tickLine={false} axisLine={false} />
+                  <ReferenceLine x={50} stroke="var(--border-strong)" strokeDasharray="3 4" />
+                  <Tooltip
+                    cursor={{ fill: "#ffffff04" }}
+                    content={({ active, payload }) => {
+                      if (!active || !payload?.length) return null;
+                      const row = payload[0].payload as { label: string; count: number; winRatePct: number; net: number };
+                      return <div className="chart-tooltip">
+                        <strong>{row.label}</strong>
+                        <p>Réussite <b className="mono">{num(row.winRatePct, 1)} %</b></p>
+                        <p>{tradeCount(row.count)} · {signedMoney(row.net)}</p>
+                      </div>;
+                    }}
+                  />
+                  <Bar dataKey="winRatePct" background={{ fill: "var(--border)", radius: 3 }} label={{ position: "right", formatter: (value) => `${num(Number(value), 1)} %`, fill: "var(--text)", fontSize: 11 }} radius={[0, 3, 3, 0]} maxBarSize={12} isAnimationActive={false}>
+                    {sessionRows.map((row) => <Cell key={row.label} fill={row.winRatePct >= 50 ? "var(--green)" : "var(--red)"} />)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          ) : <p className="empty">Aucune session renseignée sur cette sélection.</p>}
+        </Panel>
+        <Panel className="analysis-chart-card">
+          <div className="panel-heading">
+            <div>
+              <h2>Plan et résultat</h2>
+              <p className="footnote">Chaque point est un trade noté · seuil de plan à 8/10.</p>
+            </div>
+          </div>
+          {planPoints.length ? (
+            <div className="chart" role="img" aria-label="Nuage des scores de respect du plan et des résultats en R">
+              <ResponsiveContainer width="100%" height="100%">
+                <ScatterChart margin={{ top: 24, right: 12, bottom: 0, left: 0 }}>
+                  <CartesianGrid stroke="var(--border)" strokeDasharray="3 5" />
+                  <XAxis type="number" dataKey="score" domain={[0, 10]} ticks={[0, 2, 4, 6, 8, 10]} tick={{ fill: "var(--muted)", fontSize: 10 }} tickLine={false} axisLine={false} />
+                  <YAxis type="number" dataKey="r" width={54} tickFormatter={(value) => r(Number(value))} tick={{ fill: "var(--muted)", fontSize: 10 }} tickLine={false} axisLine={false} />
+                  <ReferenceLine x={8} stroke="var(--accent)" strokeDasharray="3 4" label={{ value: "Plan 8/10", position: "top", fill: "var(--accent)", fontSize: 11 }} />
+                  <ReferenceLine y={0} stroke="var(--border-strong)" />
+                  <Tooltip
+                    cursor={{ strokeDasharray: "3 3" }}
+                    content={({ active, payload }) => {
+                      if (!active || !payload?.length) return null;
+                      const point = payload[0].payload as { instrument: string; setup: string; score: number; r: number; net: number };
+                      return <div className="chart-tooltip">
+                        <strong>{point.instrument} · {point.setup}</strong>
+                        <p>Score <b className="mono">{point.score}/10</b></p>
+                        <p className={point.r >= 0 ? "positive" : "negative"}>{r(point.r)} · {signedMoney(point.net)}</p>
+                      </div>;
+                    }}
+                  />
+                  <Scatter data={planPoints} fill="var(--accent)" fillOpacity={0.48} stroke="var(--surface)" strokeWidth={1} isAnimationActive={false}>
+                    {planPoints.map((point) => <Cell key={point.id} fill={point.r >= 0 ? "var(--green)" : "var(--red)"} />)}
+                  </Scatter>
+                </ScatterChart>
+              </ResponsiveContainer>
+            </div>
+          ) : <p className="empty">Note les trades pour afficher la relation entre plan et résultat.</p>}
+        </Panel>
       </div>
       <div className="bottom-grid">
         <Panel>
@@ -1797,17 +2012,18 @@ function Analytics({
           <div className="chart radar">
             <ResponsiveContainer width="100%" height="100%">
               <RadarChart
+                outerRadius="65%"
                 data={setups.map((s) => ({
                   name:
-                    s.label.length > 20 ? s.label.slice(0, 20) + "…" : s.label,
+                    s.label.length > 16 ? s.label.slice(0, 16) + "…" : s.label,
                   score:
                     (averagePlan(trades.filter((t) => t.setup === s.label)) ?? 0) * 10,
                 }))}
               >
-                <PolarGrid stroke="#d2eaa339" />
+                <PolarGrid stroke="#ffffff14" />
                 <PolarAngleAxis
                   dataKey="name"
-                  tick={{ fill: "var(--muted)", fontSize: 12 }}
+                  tick={{ fill: "var(--muted)", fontSize: 10 }}
                 />
                 <PolarRadiusAxis domain={[0, 100]} tick={false} />
                 <Tooltip formatter={value => [num(Number(value) / 10, 1) + " / 10", "Respect du plan"]} contentStyle={{background: "var(--surface)", borderColor: "var(--border-strong)", borderRadius: 10}} />
@@ -1951,7 +2167,7 @@ function Leaks({
   return (
     <>
       <div className="briefing">
-        <ScanLine size={24} className="violet-text" />
+        <ScanLine size={24} className="accent-text" />
         <p>
           Classement par pertes cumulées, avec au moins {minSample} observations
           par groupe. Les catégories se chevauchent : leurs pertes ne doivent

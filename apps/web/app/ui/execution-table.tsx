@@ -1,7 +1,7 @@
 "use client";
 import { InstrumentMark } from "./instrument-mark";
 import { useEffect, useState } from "react";
-import { ArrowDown, ArrowUp, ArrowUpRight } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpRight, Pencil, Trash2 } from "lucide-react";
 import { calculateTrade, localDateTime, type Trade } from "@edge/core";
 import { Empty, r, signedMoney } from "./kit";
 import { TRADE_COLUMNS, type TradeColumn } from "./view-data";
@@ -16,6 +16,8 @@ export function TradeTable({
   caption = "Exécutions de la sélection",
   onSelect,
   selectedId,
+  onEdit,
+  onDelete,
 }: {
   trades: Trade[];
   onOpen: (trade: Trade, context?: Trade[]) => void;
@@ -25,6 +27,8 @@ export function TradeTable({
   caption?: string;
   onSelect?: (trade: Trade) => void;
   selectedId?: string;
+  onEdit?: (trade: Trade) => void;
+  onDelete?: (trade: Trade) => void;
 }) {
   const [limit, setLimit] = useState(50);
   useEffect(() => {
@@ -88,10 +92,10 @@ export function TradeTable({
               </th>
               {columns.includes("setup") && <th>Setup / contexte</th>}
               {columns.includes("direction") && (
-                <th className="optional-column">Direction</th>
+                <th className="optional-column direction-column">Direction</th>
               )}
               {columns.includes("mental") && (
-                <th className="optional-column">État mental</th>
+                <th className="optional-column mental-column">État mental</th>
               )}
               {columns.includes("plan") && (
                 <th className="optional-column">Plan</th>
@@ -173,14 +177,14 @@ export function TradeTable({
                     </td>
                   )}
                   {columns.includes("direction") && (
-                    <td className="optional-column">
+                    <td className="optional-column direction-column">
                       <span className="direction-label">
                         {trade.direction === "LONG" ? "↗ Achat" : "↘ Vente"}
                       </span>
                     </td>
                   )}
                   {columns.includes("mental") && (
-                    <td className="optional-column">
+                    <td className="optional-column mental-column">
                       {trade.mentalBefore || "Non renseigné"}
                     </td>
                   )}
@@ -190,14 +194,36 @@ export function TradeTable({
                     </td>
                   )}
                   <td className="row-action">
-                    <button
-                      type="button"
-                      className="icon-btn row-open"
-                      aria-label={"Voir le trade " + trade.instrument}
-                      onClick={() => onOpen(trade, trades)}
-                    >
-                      <ArrowUpRight size={16} aria-hidden="true" />
-                    </button>
+                    <div className="row-actions">
+                      {onEdit && (
+                        <button
+                          type="button"
+                          className="icon-btn row-quick"
+                          aria-label={"Modifier le trade " + trade.instrument}
+                          onClick={() => onEdit(trade)}
+                        >
+                          <Pencil size={14} aria-hidden="true" />
+                        </button>
+                      )}
+                      {onDelete && (
+                        <button
+                          type="button"
+                          className="icon-btn row-quick danger"
+                          aria-label={"Supprimer le trade " + trade.instrument}
+                          onClick={() => onDelete(trade)}
+                        >
+                          <Trash2 size={14} aria-hidden="true" />
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        className="icon-btn row-open"
+                        aria-label={"Voir le trade " + trade.instrument}
+                        onClick={() => onOpen(trade, trades)}
+                      >
+                        <ArrowUpRight size={16} aria-hidden="true" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               );

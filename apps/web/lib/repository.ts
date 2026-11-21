@@ -53,8 +53,16 @@ export async function saveJournal(
           update: data,
         });
       }
+      const activeSetups = new Set(journal.setups.map((setup) => setup.id));
+      const removedSetupIds = previous?.setups.filter((setup) => !activeSetups.has(setup.id)).map((setup) => key(setup.id)) ?? [];
+      if (removedSetupIds.length) {
+        await tx.setup.deleteMany({ where: { userId, id: { in: removedSetupIds } } });
+      }
       for (const s of journal.setups) {
         setupIds.set(s.name, key(s.id));
+        if (!previous?.setups.some((setup) => setup.id === s.id)) {
+          await tx.setup.updateMany({ where: { userId, name: s.name, id: { not: key(s.id) } }, data: { id: key(s.id) } });
+        }
         await tx.setup.upsert({
           where: { id: key(s.id) },
           create: {
@@ -90,7 +98,8 @@ export async function saveJournal(
       for (const t of journal.trades) {
         if (
           previous &&
-          JSON.stringify(prevTrades.get(t.id)) === JSON.stringify(t)
+          JSON.stringify(prevTrades.get(t.id)) === JSON.stringify(t) &&
+          !previous.setups.some((setup) => setup.name === t.setup && !activeSetups.has(setup.id))
         )
           continue;
         const spec = journal.settings.instruments[t.instrument];

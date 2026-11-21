@@ -563,8 +563,8 @@ export function SettingsPanel() {
     <>
       <div className="bottom-grid settings-layout">
         <CloudHistory/>
-        <Panel><h2>Volume du journal</h2><p className="muted">{data.trades.length} trades · {data.drafts.length} brouillons / positions · {data.trades.reduce((n,t)=>n+(t.screenshots?.length??0),0)} captures de trades</p><strong>{(new TextEncoder().encode(JSON.stringify(data)).byteLength/1000000).toFixed(2)} Mo dans le document courant</strong><p className="footnote">Les captures synchronisées sont conservées séparément dans un espace privé et mises en cache sur cet appareil. La sauvegarde JSON complète inclut leurs images.</p></Panel>
-        <Panel>
+        <Panel className="settings-volume"><h2>Volume du journal</h2><p className="muted">{data.trades.length} trades · {data.drafts.length} brouillons / positions · {data.trades.reduce((n,t)=>n+(t.screenshots?.length??0),0)} captures de trades</p><strong>{(new TextEncoder().encode(JSON.stringify(data)).byteLength/1000000).toFixed(2)} Mo dans le document courant</strong><p className="footnote">Les captures synchronisées sont conservées séparément dans un espace privé et mises en cache sur cet appareil. La sauvegarde JSON complète inclut leurs images.</p></Panel>
+        <Panel className="settings-backup">
           <h2>Sauvegarde et restauration</h2>
           <p className="muted">
             La sauvegarde JSON contient comptes, trades, captures, annotations,
@@ -639,7 +639,7 @@ export function SettingsPanel() {
             </button>
           </div>
         </Panel>
-        <Panel>
+        <Panel className="settings-preferences">
           <h2>Préférences et instruments</h2>
           <form
             onSubmit={(e) => {

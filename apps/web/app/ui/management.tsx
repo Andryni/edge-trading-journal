@@ -265,6 +265,10 @@ export function Accounts({ at }: { at: string }) {
                 />
                 <Stat label="Marge de drawdown" value={money(s.remaining)} />
               </dl>
+              <div className="account-progress-label">
+                <span>Progression vers l’objectif</span>
+                <strong>{Math.round(Math.min(100, Math.max(0, s.progress * 100)))} %</strong>
+              </div>
               <div className="progress-track">
                 <span
                   style={{
@@ -466,6 +470,12 @@ export function SessionRoutine({
   };
   const review = data.reviews.find((r) => r.date === date);
   const [notice, setNotice] = useState("");
+  const contextPlaceholders: Record<string, string> = {
+    levels: "Ex. biais haussier au-dessus du VWAP ; 18 420 puis 18 380…",
+    optionLevels: "Ex. call wall 18 500 · put wall 18 300 · zero gamma 18 410…",
+    volumeZones: "Ex. POC 18 415 · HVN 18 390–18 400 · zone Bookmap à surveiller…",
+    events: "Ex. CPI 14:30 · prise de parole Fed 20:00 · pas de trade 10 min avant…",
+  };
   return (
     <>
       <div className="routine-status">
@@ -543,6 +553,7 @@ export function SessionRoutine({
                 <Field label={label} key={k}>
                   <textarea
                     name={k}
+                    placeholder={contextPlaceholders[k]}
                     defaultValue={String(plan[k as keyof typeof plan])}
                     rows={2}
                   />
@@ -653,6 +664,7 @@ export function SessionRoutine({
               <textarea
                 name="worstMistake"
                 required
+                placeholder="Ex. entrée anticipée avant le retest du niveau, sans confirmation."
                 defaultValue={review?.worstMistake}
                 rows={4}
               />
@@ -661,6 +673,7 @@ export function SessionRoutine({
               <textarea
                 name="tomorrowAction"
                 required
+                placeholder="Ex. attendre la clôture de la bougie 5 min avant chaque entrée."
                 defaultValue={review?.tomorrowAction}
                 rows={4}
               />
@@ -668,6 +681,9 @@ export function SessionRoutine({
             <button className="btn primary full">Enregistrer la revue</button>
           </form>
           <h3>Dernières revues</h3>
+          {data.reviews.length === 0 && (
+            <p className="footnote">Aucune revue enregistrée. La première revue apparaîtra ici.</p>
+          )}
           {data.reviews
             .slice(-5)
             .reverse()
@@ -700,6 +716,7 @@ export function Playbook() {
     [create, setCreate] = useState(false),
     [error, setError] = useState("");
   const [examples, setExamples] = useState<string[]>([]);
+  const [pendingDelete, setPendingDelete] = useState<Journal["setups"][number] | null>(null);
   return (
     <>
       <div className="view-toolbar">
@@ -712,6 +729,7 @@ export function Playbook() {
           onClick={() => {
             setCreate(true);
             setExamples([]);
+            setError("");
           }}
         >
           Créer un setup
@@ -757,19 +775,38 @@ export function Playbook() {
                   }))}
                 />
               )}
+              <div className="modal-actions">
               <button
-                className="btn secondary full"
+                className="btn secondary"
                 onClick={() => {
+                  setError("");
                   setEdit(s);
                   setExamples(s.examples);
                 }}
               >
                 Modifier le setup
               </button>
+              <button type="button" className="btn secondary danger" onClick={() => setPendingDelete(s)}>
+                Supprimer
+              </button>
+              </div>
             </Panel>
           );
         })}
       </div>
+      {data.setups.length === 0 && <p className="empty">Ton Playbook est vide. Crée un setup pour y consigner tes règles.</p>}
+      {pendingDelete && (
+        <Modal title="Supprimer ce setup ?" onClose={() => setPendingDelete(null)}>
+          <p>La fiche « <strong>{pendingDelete.name}</strong> », ses règles, ses exemples et ses versions seront retirés du Playbook. Les trades et les plans déjà enregistrés garderont leur libellé.</p>
+          <div className="modal-actions">
+            <button type="button" className="btn secondary" onClick={() => setPendingDelete(null)}>Annuler</button>
+            <button type="button" className="btn danger-confirm" onClick={() => {
+              update((journal) => { journal.setups = journal.setups.filter((setup) => setup.id !== pendingDelete.id); });
+              setPendingDelete(null);
+            }}>Supprimer le setup</button>
+          </div>
+        </Modal>
+      )}
       {(edit || create) && (
         <Modal
           title={edit ? "Modifier le setup" : "Nouveau setup"}
@@ -784,6 +821,7 @@ export function Playbook() {
               try {
                 const f = new FormData(e.currentTarget);
                 const name = String(f.get("name")).trim();
+                if (!name) throw new Error("Saisis un nom pour ce setup.");
                 if (
                   data.setups.some((s) => s.name === name && s.id !== edit?.id)
                 )
@@ -805,6 +843,9 @@ export function Playbook() {
                     j.trades = j.trades.map((t) =>
                       t.setup === edit.name ? { ...t, setup: name } : t,
                     );
+                    for (const draft of j.drafts) {
+                      if (draft.values.setup === edit.name) draft.values.setup = name;
+                    }
                     j.plans = j.plans.map((p) => ({
                       ...p,
                       allowedSetups: p.allowedSetups.map((s) =>

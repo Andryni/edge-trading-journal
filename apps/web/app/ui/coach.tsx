@@ -108,7 +108,7 @@ export default function Coach({ trades, scope }: { trades: Trade[]; scope?: stri
       <Panel>
         <div className="panel-heading">
           <div>
-            <span className="eyebrow violet-text">Revue de la sélection</span>
+            <span className="eyebrow accent-text">Revue de la sélection</span>
             <h2>Coach d’exécution</h2>
           </div>
           <Pill tone="neutral">{api ? "COACH IA" : "COACH INTÉGRÉ"}</Pill>

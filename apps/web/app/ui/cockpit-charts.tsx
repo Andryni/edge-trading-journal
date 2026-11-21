@@ -277,12 +277,12 @@ export function ResultsByPeriod({
 }
 
 const SEGMENTS = [
-  "#8ED0E4",
-  "#6FAFC4",
-  "#578FA5",
-  "#417286",
-  "#2F5868",
-  "#24424F",
+  "#52E0B0",
+  "#3BC79A",
+  "#2FA984",
+  "#268B6D",
+  "#1E6E57",
+  "#175543",
 ];
 export function Distribution({
   trades,

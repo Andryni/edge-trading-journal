@@ -6,6 +6,7 @@ import {
   FileText,
   Image as ImageIcon,
   Pencil,
+  Trash2,
 } from "lucide-react";
 import {
   calculateTrade,
@@ -27,6 +28,7 @@ export default function JournalInspector({
   active,
   onOpen,
   onEdit,
+  onDelete,
   onReview,
 }: {
   trade?: Trade;
@@ -36,9 +38,12 @@ export default function JournalInspector({
   active: boolean;
   onOpen: (trade: Trade, context?: Trade[]) => void;
   onEdit: (trade: Trade) => void;
+  onDelete: (trade: Trade) => void;
   onReview: (day: string) => void;
 }) {
   const metrics = trade ? calculateTrade(trade) : null;
+  const enteredAt = trade ? localDateTime(trade.enteredAt) : "";
+  const planScore = trade?.planScore ?? 0;
   const session = day ? summarize(trades) : null;
   const review = journal.reviews.find((review) => review.date === day);
   return (
@@ -103,7 +108,9 @@ export default function JournalInspector({
             <InstrumentMark symbol={trade.instrument} />
             <div>
               <h2>{trade.instrument}</h2>
-              <span>{localDateTime(trade.enteredAt).replace("T", " ")} ET</span>
+              <span>
+                {dateLabel(enteredAt.slice(0, 10))} · {enteredAt.slice(11, 16)} ET
+              </span>
             </div>
           </div>
           <h3 className="inspector-setup">{trade.setup}</h3>
@@ -111,22 +118,39 @@ export default function JournalInspector({
             {journal.accounts.find((account) => account.id === trade.accountId)
               ?.name ?? "Compte non renseigné"}
           </p>
-          <div className="inspector-result">
-            <strong
-              className={
-                "mono " +
-                (metrics.net > 0
-                  ? "positive"
-                  : metrics.net < 0
-                    ? "negative"
-                    : "")
-              }
-            >
-              {metrics.riskKnown ? r(metrics.realizedR) : "R inconnu"}
-            </strong>
-            <span className="mono">{signedMoney(metrics.net)}</span>
+          <div className="inspector-outcome">
+            <div className="inspector-result">
+              <span className="eyebrow">Résultat net</span>
+              <strong
+                className={
+                  "mono " +
+                  (metrics.net > 0
+                    ? "positive"
+                    : metrics.net < 0
+                      ? "negative"
+                      : "")
+                }
+              >
+                {metrics.riskKnown ? r(metrics.realizedR) : "R inconnu"}
+              </strong>
+              <span className="mono">{signedMoney(metrics.net)}</span>
+            </div>
+            <div className="inspector-score">
+              <TradeStatus trade={trade} score />
+              {planScore > 0 && (
+                <div className="inspector-score-track" aria-hidden="true">
+                  {Array.from({ length: 10 }, (_, index) => (
+                    <span
+                      key={index}
+                      data-on={
+                        index < Math.round(planScore) ? "true" : undefined
+                      }
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
-          <TradeStatus trade={trade} score />
           <dl className="inspector-facts">
             <div>
               <dt>Risque initial</dt>
@@ -142,10 +166,15 @@ export default function JournalInspector({
             </div>
           </dl>
           <div className="inspector-note">
-            <FileText size={15} aria-hidden="true" />
-            <p className="pre-line">
-              {trade.notes || "Aucune note enregistrée pour cette exécution."}
-            </p>
+            <span className="inspector-note-icon">
+              <FileText size={15} aria-hidden="true" />
+            </span>
+            <div>
+              <span className="eyebrow">Note d’exécution</span>
+              <p className="pre-line">
+                {trade.notes || "Aucune note enregistrée pour cette exécution."}
+              </p>
+            </div>
           </div>
           {trade.screenshots?.length ? (
             <div className="inspector-capture">
@@ -153,8 +182,9 @@ export default function JournalInspector({
             </div>
           ) : (
             <div className="inspector-no-capture">
-              <ImageIcon size={18} aria-hidden="true" />
-              <span>Aucune capture enregistrée</span>
+              <ImageIcon size={16} aria-hidden="true" />
+              <span>Capture</span>
+              <strong>Aucune</strong>
             </div>
           )}
           <div className="inspector-actions">
@@ -172,6 +202,14 @@ export default function JournalInspector({
             >
               <Pencil size={14} />
               Modifier
+            </button>
+            <button
+              type="button"
+              className="btn secondary danger"
+              onClick={() => onDelete(trade)}
+            >
+              <Trash2 size={14} />
+              Supprimer
             </button>
           </div>
         </section>
