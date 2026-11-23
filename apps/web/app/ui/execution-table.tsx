@@ -18,6 +18,8 @@ export function TradeTable({
   selectedId,
   onEdit,
   onDelete,
+  selection,
+  onSelection,
 }: {
   trades: Trade[];
   onOpen: (trade: Trade, context?: Trade[]) => void;
@@ -29,6 +31,8 @@ export function TradeTable({
   selectedId?: string;
   onEdit?: (trade: Trade) => void;
   onDelete?: (trade: Trade) => void;
+  selection?: string[];
+  onSelection?: (ids: string[]) => void;
 }) {
   const [limit, setLimit] = useState(50);
   useEffect(() => {
@@ -38,6 +42,17 @@ export function TradeTable({
     media.addEventListener("change", apply);
     return () => media.removeEventListener("change", apply);
   }, [trades]);
+  const visible = trades.slice(0, limit);
+  const chosen = selection ?? [];
+  const allChosen =
+    visible.length > 0 && visible.every((trade) => chosen.includes(trade.id));
+  function toggle(id: string) {
+    onSelection?.(
+      chosen.includes(id)
+        ? chosen.filter((value) => value !== id)
+        : [...chosen, id],
+    );
+  }
   return (
     <div className="execution-list">
       <div
@@ -52,6 +67,24 @@ export function TradeTable({
           </caption>
           <thead>
             <tr>
+              {onSelection && (
+                <th className="select-cell">
+                  <input
+                    type="checkbox"
+                    aria-label="Sélectionner les exécutions affichées"
+                    checked={allChosen}
+                    onChange={() =>
+                      onSelection?.(
+                        allChosen
+                          ? chosen.filter(
+                              (id) => !visible.some((trade) => trade.id === id),
+                            )
+                          : [...new Set([...chosen, ...visible.map((trade) => trade.id)])],
+                      )
+                    }
+                  />
+                </th>
+              )}
               <th aria-sort={sort === "date" ? "descending" : undefined}>
                 {onSort ? (
                   <button type="button" onClick={() => onSort("date")}>
@@ -90,7 +123,7 @@ export function TradeTable({
                   "Résultat net"
                 )}
               </th>
-              {columns.includes("setup") && <th>Setup / contexte</th>}
+              {columns.includes("setup") && <th className="setup-cell">Setup / contexte</th>}
               {columns.includes("direction") && (
                 <th className="optional-column direction-column">Direction</th>
               )}
@@ -106,14 +139,32 @@ export function TradeTable({
             </tr>
           </thead>
           <tbody>
-            {trades.slice(0, limit).map((trade) => {
+            {visible.map((trade) => {
               const metrics = calculateTrade(trade);
               return (
                 <tr
                   key={trade.id}
                   data-trade-id={trade.id}
                   data-selected={trade.id === selectedId || undefined}
+                  data-checked={
+                    chosen.includes(trade.id) ? "true" : undefined
+                  }
                 >
+                  {onSelection && (
+                    <td className="select-cell">
+                      <input
+                        type="checkbox"
+                        aria-label={
+                          "Sélectionner " +
+                          trade.instrument +
+                          " du " +
+                          localDateTime(trade.enteredAt)
+                        }
+                        checked={chosen.includes(trade.id)}
+                        onChange={() => toggle(trade.id)}
+                      />
+                    </td>
+                  )}
                   <td className="instrument-cell">
                     <button
                       type="button"
@@ -150,18 +201,36 @@ export function TradeTable({
                           : "muted")
                     }
                   >
-                    <strong
-                      className={
-                        "result-badge mono " +
-                        (metrics.net > 0
-                          ? "gain"
+                    <div className="result-line">
+                      <strong
+                        className={
+                          "result-badge mono " +
+                          (metrics.net > 0
+                            ? "gain"
+                            : metrics.net < 0
+                              ? "loss"
+                              : "neutral")
+                        }
+                      >
+                        {metrics.riskKnown ? r(metrics.realizedR) : "R inconnu"}
+                      </strong>
+                      <span
+                        className={
+                          "trade-state " +
+                          (metrics.net > 0
+                            ? "gain"
+                            : metrics.net < 0
+                              ? "loss"
+                              : "neutral")
+                        }
+                      >
+                        {metrics.net > 0
+                          ? "Gagnant"
                           : metrics.net < 0
-                            ? "loss"
-                            : "neutral")
-                      }
-                    >
-                      {metrics.riskKnown ? r(metrics.realizedR) : "R inconnu"}
-                    </strong>
+                            ? "Perdant"
+                            : "Neutre"}
+                      </span>
+                    </div>
                     <small className="mono">{signedMoney(metrics.net)}</small>
                     <small>{EXIT_REASONS[trade.exitReason ?? "UNKNOWN"]}</small>
                   </td>

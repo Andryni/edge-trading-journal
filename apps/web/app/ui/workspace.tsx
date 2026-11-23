@@ -1,6 +1,7 @@
 "use client";
 import "./performance.css";
 import Login from "./login";
+import SavedJournalViews from "./saved-journal-views";
 import { InstrumentMark } from "./instrument-mark";
 import { MetricGraphic } from "./metric-graphic";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
@@ -41,6 +42,7 @@ import {
   Radio,
   SlidersHorizontal,
   ChevronDown,
+  BookmarkPlus,
 } from "lucide-react";
 import {
   accountLabel,
@@ -77,6 +79,9 @@ import {
   signedMoney,
   num,
   r,
+  Tabs,
+  RangeBar,
+  BalanceBar,
 } from "./kit";
 import TradeEditor from "./trade-editor";
 import {
@@ -304,13 +309,14 @@ export default function Workspace() {
   const journalVisible = useMemo(
     () =>
       journalTrades(
-        journalBase,
+        journalBase.filter(t => !journalOptions.day || nyDate(t.exitedAt) === journalOptions.day),
         search,
         sort,
         journalOptions.result,
         journalOptions.plan,
         journalOptions.exitReason,
         journalOptions.review,
+        journalOptions.streak,
       ),
     [journalBase, search, sort, journalOptions],
   );
@@ -871,6 +877,116 @@ export default function Workspace() {
                         )}
                       </select>
                     </Field>
+                    {view === "Journal" && (
+                      <div className="filterbar-journal">
+                        <Field label="Recherche">
+                          <input
+                            type="search"
+                            value={search}
+                            placeholder="Instrument ou setup…"
+                            onChange={(e) => setSearch(e.target.value)}
+                          />
+                        </Field>
+                        <div className="field">
+                          <span>Résultat</span>
+                          <div
+                            className="result-switch"
+                            role="group"
+                            aria-label="Filtrer par résultat"
+                          >
+                            {(
+                              [
+                                { value: "all", label: "Toutes" },
+                                { value: "gain", label: "+ Gains" },
+                                { value: "loss", label: "− Pertes" },
+                                { value: "flat", label: "Neutres" },
+                              ] as const
+                            ).map((item) => (
+                              <button
+                                key={item.value}
+                                type="button"
+                                aria-pressed={
+                                  journalOptions.result === item.value
+                                }
+                                onClick={() =>
+                                  setJournalOptions((current) => ({
+                                    ...current,
+                                    result: item.value,
+                                    streak: "all",
+                                  }))
+                                }
+                              >
+                                {item.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        <Field label="Respect du plan">
+                          <select
+                            value={journalOptions.plan}
+                            onChange={(e) =>
+                              setJournalOptions((current) => ({
+                                ...current,
+                                plan: e.target.value as JournalOptions["plan"],
+                              }))
+                            }
+                          >
+                            <option value="all">Tous les statuts</option>
+                            <option value="respected">Plan respecté</option>
+                            <option value="offplan">Hors plan</option>
+                            <option value="unknown">Non renseigné</option>
+                          </select>
+                        </Field>
+                        <Field label="Motif de clôture">
+                          <select
+                            value={journalOptions.exitReason ?? "all"}
+                            onChange={(e) =>
+                              setJournalOptions((current) => ({
+                                ...current,
+                                exitReason: e.target.value,
+                              }))
+                            }
+                          >
+                            <option value="all">Tous les motifs</option>
+                            {Object.entries(EXIT_REASONS).map(([key, label]) => (
+                              <option key={key} value={key}>
+                                {label}
+                              </option>
+                            ))}
+                          </select>
+                        </Field>
+                        <Field label="Revue du trade">
+                          <select
+                            value={journalOptions.review ?? "all"}
+                            onChange={(e) =>
+                              setJournalOptions((current) => ({
+                                ...current,
+                                review: e.target
+                                  .value as JournalOptions["review"],
+                              }))
+                            }
+                          >
+                            <option value="all">Toutes les revues</option>
+                            <option value="pending">À revoir</option>
+                            <option value="reviewed">Terminées</option>
+                          </select>
+                        </Field>
+                        <Field label="Série maximale">
+                          <select value={journalOptions.streak ?? "all"} onChange={e => setJournalOptions(current => ({...current, streak: e.target.value as JournalOptions["streak"], result: "all", inspectedId: undefined}))}>
+                            <option value="all">Toutes les exécutions</option>
+                            <option value="gain">Série gagnante · première en cas d’égalité</option>
+                            <option value="loss">Série perdante · première en cas d’égalité</option>
+                          </select>
+                        </Field>
+                        <SavedJournalViews views={data.savedViews} update={update} autoLoadDefault={!journalFocus}
+                          filters={{search, sort, result: journalOptions.result, plan: journalOptions.plan, mode: journalOptions.mode, exitReason: journalOptions.exitReason ?? "all", review: journalOptions.review ?? "all", streak: journalOptions.streak ?? "all", density: journalOptions.density ?? "comfortable", columns: journalOptions.columns.join(","), day: journalOptions.day ?? "", account, symbol, setup, session, timeframe, from, to, riskVerified: String(riskVerified)}}
+                          onLoad={f => {
+                            setSearch(f.search ?? ""); setSort(f.sort ?? "date"); setJournalFocus(null);
+                            setAccount(f.account ?? "all"); setSymbol(f.symbol ?? "all"); setSetup(f.setup ?? "all"); setSession(f.session ?? "all"); setTimeframe(f.timeframe ?? "all"); setFrom(f.from ?? ""); setTo(f.to ?? ""); setRiskVerified(f.riskVerified === "true");
+                            setJournalOptions({...DEFAULT_JOURNAL_OPTIONS, result: (f.result as JournalOptions["result"]) ?? "all", plan: (f.plan as JournalOptions["plan"]) ?? "all", mode: (f.mode as JournalOptions["mode"]) ?? "trades", exitReason: f.exitReason ?? "all", review: (f.review as JournalOptions["review"]) ?? "all", streak: (f.streak as JournalOptions["streak"]) ?? "all", density: f.density === "compact" ? "compact" : "comfortable", columns: f.columns === undefined ? DEFAULT_JOURNAL_OPTIONS.columns : DEFAULT_JOURNAL_OPTIONS.columns.filter(c => f.columns.split(",").includes(c)), day: f.day || undefined});
+                          }} />
+                      </div>
+                    )}
                     <button
                       className="text-btn"
                       onClick={() => {
@@ -1407,6 +1523,7 @@ export default function Workspace() {
                     setDate(day);
                     go("Plan & revue");
                   }}
+                  streakTrades={journalBase.filter(t => !journalOptions.day || nyDate(t.exitedAt) === journalOptions.day)}
                   trades={journalVisible}
                   total={journalBase.length}
                   options={journalOptions}
@@ -1691,10 +1808,11 @@ function Analytics({
 }) {
   const stats = useMemo(() => summarize(trades), [trades]);
   const history = useMemo(() => {
-    let peak = 0;
-    return [{ date: "Départ", equity: 0, drawdown: 0 }, ...stats.curve.map(point => {
+    let peak = 0, peakR = 0;
+    return [{ date: "Départ", equity: 0, drawdown: 0, r: 0, drawdownR: 0 }, ...stats.curve.map(point => {
       peak = Math.max(peak, point.usd);
-      return { date: point.date, equity: point.usd, drawdown: point.usd - peak };
+      peakR = Math.max(peakR, point.r);
+      return { date: point.date, equity: point.usd, drawdown: point.usd - peak, r: point.r, drawdownR: point.r - peakR };
     })];
   }, [stats]);
   const monthFormat = useMemo(() => new Intl.DateTimeFormat("fr-FR", {
@@ -1703,7 +1821,7 @@ function Analytics({
     timeZone: "UTC",
   }), []);
   const monthly = useMemo(() => {
-    const rows = new Map<string, { month: string; label: string; net: number; count: number; wins: number }>();
+    const rows = new Map<string, { month: string; label: string; net: number; r: number; count: number; rated: number; wins: number; ids: string[] }>();
     for (const trade of trades) {
       const month = nyDate(trade.exitedAt).slice(0, 7);
       const metrics = calculateTrade(trade);
@@ -1711,24 +1829,49 @@ function Analytics({
         month,
         label: monthFormat.format(new Date(month + "-01T12:00:00Z")),
         net: 0,
+        r: 0,
         count: 0,
+        rated: 0,
         wins: 0,
+        ids: [],
       };
       row.net += metrics.net;
+      row.r += metrics.realizedR;
       row.count += 1;
+      row.ids.push(trade.id);
+      if (metrics.riskKnown) row.rated += 1;
       if (metrics.net > 0) row.wins += 1;
       rows.set(month, row);
     }
     return [...rows.values()].sort((a, b) => a.month.localeCompare(b.month));
   }, [trades, monthFormat]);
+  const weekdayRows = useMemo(() => {
+    const rows = ["lun.", "mar.", "mer.", "jeu.", "ven.", "sam.", "dim."].map(label => ({
+      label, net: 0, r: 0, count: 0, rated: 0, wins: 0, ids: [] as string[],
+    }));
+    for (const trade of trades) {
+      const date = new Date(nyDate(trade.exitedAt) + "T12:00:00Z");
+      const row = rows[(date.getUTCDay() + 6) % 7];
+      const metrics = calculateTrade(trade);
+      row.net += metrics.net;
+      row.r += metrics.realizedR;
+      row.count += 1;
+      row.ids.push(trade.id);
+      if (metrics.riskKnown) row.rated += 1;
+      if (metrics.net > 0) row.wins += 1;
+    }
+    return rows.slice(0, 5).concat(rows.slice(5).filter(row => row.count > 0));
+  }, [trades]);
+  const bestWeekday = weekdayRows.reduce((best, row) => row.net > best.net ? row : best, weekdayRows[0]);
+  const bestWeekdayR = weekdayRows.reduce((best, row) => row.r > best.r ? row : best, weekdayRows[0]);
   const resultDistribution = useMemo(() => {
     const rows = [
-      { label: "≤ −2R", count: 0 },
-      { label: "−2 à −1R", count: 0 },
-      { label: "−1 à 0R", count: 0 },
-      { label: "0 à 1R", count: 0 },
-      { label: "1 à 2R", count: 0 },
-      { label: "≥ 2R", count: 0 },
+      { label: "≤ −2R", count: 0, ids: [] as string[] },
+      { label: "−2 à −1R", count: 0, ids: [] as string[] },
+      { label: "−1 à 0R", count: 0, ids: [] as string[] },
+      { label: "0 à 1R", count: 0, ids: [] as string[] },
+      { label: "1 à 2R", count: 0, ids: [] as string[] },
+      { label: "≥ 2R", count: 0, ids: [] as string[] },
     ];
     for (const trade of trades) {
       const metrics = calculateTrade(trade);
@@ -1736,6 +1879,7 @@ function Analytics({
       const value = metrics.realizedR;
       const index = value <= -2 ? 0 : value <= -1 ? 1 : value < 0 ? 2 : value < 1 ? 3 : value < 2 ? 4 : 5;
       rows[index].count += 1;
+      rows[index].ids.push(trade.id);
     }
     return rows;
   }, [trades]);
@@ -1758,7 +1902,10 @@ function Analytics({
     }];
   }), [trades]);
   const [dimension, setDimension] = useState("session");
-  const [unit, setUnit] = useState<"net" | "r">("net");
+  const [view, setView] = useState<"overview" | "wins" | "compare">(
+    "overview",
+  );
+  const [resultUnit, setResultUnit] = useState<"net" | "r">("net");
   const hourFormat = useMemo(() => new Intl.DateTimeFormat("fr-FR", {
     timeZone: "America/New_York", hour: "2-digit", hourCycle: "h23",
   }), []);
@@ -1784,10 +1931,44 @@ function Analytics({
   };
   const labels: Record<string, string> = { instrument: "Instrument", setup: "Setup", timeframe: "Unité de temps", heure: "Heure d’entrée", session: "Session" };
   const groups = breakdown(trades, keys[dimension], minSample).sort((a, b) =>
-    dimension === "heure" ? a.label.localeCompare(b.label) : b[unit] - a[unit]);
-  const scale = Math.max(1, ...groups.map(group => Math.abs(group[unit])));
+    dimension === "heure" ? a.label.localeCompare(b.label) : b[resultUnit] - a[resultUnit]);
+  const scale = Math.max(1, ...groups.map(group => Math.abs(group[resultUnit])));
   const setups = breakdown(trades, (t) => t.setup, minSample);
   const execution = executionAnalysis(trades);
+  const resultStats = useMemo(() => {
+    const metrics = trades.map(calculateTrade);
+    const rated = metrics.filter((metric) => metric.riskKnown);
+    const wins = metrics.filter((metric) => metric.net > 0);
+    const losses = metrics.filter((metric) => metric.net < 0);
+    let peakR = 0, drawdownR = 0;
+    for (const point of stats.curve) {
+      peakR = Math.max(peakR, point.r);
+      drawdownR = Math.max(drawdownR, peakR - point.r);
+    }
+    return {
+      rated: rated.length,
+      drawdownR,
+      averageWinNet: wins.length ? wins.reduce((sum, metric) => sum + metric.net, 0) / wins.length : 0,
+      averageLossNet: losses.length ? losses.reduce((sum, metric) => sum + metric.net, 0) / losses.length : 0,
+      bestR: rated.length ? Math.max(...rated.map((metric) => metric.realizedR)) : 0,
+      worstR: rated.length ? Math.min(...rated.map((metric) => metric.realizedR)) : 0,
+    };
+  }, [trades, stats]);
+  const quality = useMemo(() => {
+    const checks: { label: string; note: string; test: (trade: Trade) => boolean }[] = [
+      { label: "Risque inconnu", note: "Stop ou risque non renseigné", test: (trade) => !calculateTrade(trade).riskKnown },
+      { label: "Stop absent", note: "Aucun stop enregistré", test: (trade) => !(trade.stop > 0) },
+      { label: "Setup manquant", note: "Contexte non renseigné", test: (trade) => !trade.setup.trim() },
+      { label: "État mental manquant", note: "Ressenti non renseigné", test: (trade) => !trade.mentalBefore.trim() },
+      { label: "Motif de sortie inconnu", note: "TP, SL, BE… non renseigné", test: (trade) => (trade.exitReason ?? "UNKNOWN") === "UNKNOWN" },
+      { label: "Revue en attente", note: "Trade non revu", test: (trade) => trade.reviewStatus !== "REVIEWED" },
+    ];
+    return checks.map((check) => {
+      const ids = trades.filter(check.test).map((trade) => trade.id);
+      return { ...check, count: ids.length, ids };
+    });
+  }, [trades]);
+  const qualityGaps = useMemo(() => new Set(quality.flatMap((item) => item.ids)).size, [quality]);
   function inspectContext(label: string) {
     onInspect?.({
       label: "Analyse · " + label,
@@ -1798,25 +1979,56 @@ function Analytics({
   }
   return (
     <>
+      <div className="analysis-views">
+        <div className="analysis-views-main">
+        <Tabs
+          id="analysis-view"
+          label="Vue de l’analyse"
+          value={view}
+          options={[
+            { value: "overview", label: "Vue d’ensemble" },
+            { value: "wins", label: "Gains vs pertes" },
+            { value: "compare", label: "Comparer" },
+          ]}
+          onChange={setView}
+        />
+        {view === "overview" && <div className="analysis-unit">
+          <span>Unité</span>
+          <div role="group" aria-label="Unité des résultats">
+            <button type="button" aria-pressed={resultUnit === "net"} onClick={() => setResultUnit("net")}>$</button>
+            <button type="button" aria-pressed={resultUnit === "r"} onClick={() => setResultUnit("r")}>R</button>
+          </div>
+        </div>}
+        </div>
+        <p className="footnote">
+          {view === "overview"
+            ? "Graphiques et repères de la sélection."
+            : view === "wins"
+              ? "Ce qui distingue les trades gagnants des perdants."
+              : "Deux sous-ensembles de la sélection, côte à côte."}
+        </p>
+      </div>
+      {view === "overview" && (
+        <>
       <div className="metrics-grid">
         <Metric
           label="Drawdown max. de clôture"
           graphic={<MetricGraphic stats={stats} kind="drawdown" />}
-          value={money(stats.drawdown)}
+          value={resultUnit === "net" ? money(stats.drawdown) : r(resultStats.drawdownR)}
           action="Garde une marge sous le seuil du compte."
         />
         <Metric
           label="Gain moyen / perte moyenne"
           graphic={<MetricGraphic stats={stats} kind="averages" />}
-          value={r(stats.averageWinR)}
-          sub={r(stats.averageLossR) + " sur les perdants"}
+          value={resultUnit === "net" ? signedMoney(resultStats.averageWinNet) : r(stats.averageWinR)}
+          sub={(resultUnit === "net" ? signedMoney(resultStats.averageLossNet) : r(stats.averageLossR)) + " sur les perdants"}
           action="Respecte ton risque initial sur chaque trade."
         />
         <Metric
           label="Plus gros gain / perte"
           graphic={<MetricGraphic stats={stats} kind="extremes" />}
-          value={money(stats.best)}
-          sub={money(stats.worst)}
+          value={resultUnit === "net" ? money(stats.best) : r(resultStats.bestR)}
+          sub={resultUnit === "net" ? money(stats.worst) : r(resultStats.worstR)}
           action="Vérifie si ta taille est cohérente entre trades."
         />
         <Metric
@@ -1829,56 +2041,90 @@ function Analytics({
       <div className="analysis-history">
         {(["equity", "drawdown"] as const).map(key => {
           const equity = key === "equity";
-          const title = equity ? "Courbe d’équité" : "Drawdown";
+          const inR = resultUnit === "r";
+          const title = equity
+            ? (inR ? "R cumulés" : "Courbe d’équité")
+            : (inR ? "Drawdown en R" : "Drawdown");
+          const subtitle = equity
+            ? (inR ? "R cumulés depuis le début de la sélection · risque renseigné" : "Résultat net cumulé depuis le début de la sélection ($)")
+            : (inR ? "Recul depuis le plus haut R cumulé de la sélection" : "Recul depuis le plus haut résultat clôturé de la sélection ($)");
+          const dataKey = equity ? (inR ? "r" : "equity") : (inR ? "drawdownR" : "drawdown");
           const color = equity ? "var(--green)" : "var(--red)";
           return <Panel key={key}>
             <h2>{title}</h2>
-            <p className="footnote">{equity ? "Résultat net cumulé depuis le début de la sélection ($)" : "Recul depuis le plus haut résultat clôturé de la sélection ($)"}</p>
-            {stats.count ? <div className="chart" role="img" aria-label={title + " en dollars, par clôture"}>
+            <p className="footnote">{subtitle}</p>
+            {stats.count ? <div className="chart" role="img" aria-label={title + (inR ? " en R, par clôture" : " en dollars, par clôture")}>
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={history} margin={{ top: 12, bottom: 4, left: 0, right: 15 }}>
                   <CartesianGrid vertical={false} stroke="var(--border)" strokeDasharray="3 5" />
                   <XAxis dataKey="date" minTickGap={40} tickFormatter={date => date === "Départ" ? date : date.slice(8) + "/" + date.slice(5, 7)} tick={{ fill: "var(--muted)", fontSize: 11 }} tickLine={false} axisLine={false} />
-                  <YAxis domain={equity ? ["auto", "auto"] : ["auto", 0]} width={54} tickFormatter={(value) => { const n = Number(value); return (Math.abs(n) >= 1000 ? Math.round(n / 1000) + "k" : Math.round(n)) + " $"; }} tick={{ fill: "var(--muted)", fontSize: 10 }} tickLine={false} axisLine={false} />
+                  <YAxis domain={equity ? ["auto", "auto"] : ["auto", 0]} width={54} tickFormatter={(value) => {
+                    const n = Number(value);
+                    return inR ? num(n, 1) + "R" : (Math.abs(n) >= 1000 ? Math.round(n / 1000) + "k" : Math.round(n)) + " $";
+                  }} tick={{ fill: "var(--muted)", fontSize: 10 }} tickLine={false} axisLine={false} />
                   {!equity && <ReferenceLine y={0} stroke="var(--border-strong)" />}
-                  <Tooltip formatter={value => [money(Number(value)), title]} contentStyle={{background: "var(--surface)", borderColor: "var(--border-strong)"}} />
-                  <Area type="linear" dataKey={key} stroke={color} strokeWidth={2} fill={color} fillOpacity={0.15} isAnimationActive={false} />
+                  <Tooltip formatter={value => [inR ? r(Number(value)) : money(Number(value)), title]} contentStyle={{background: "var(--surface)", borderColor: "var(--border-strong)"}} />
+                  <Area type="linear" dataKey={dataKey} stroke={color} strokeWidth={2} fill={color} fillOpacity={0.15} isAnimationActive={false} />
                 </AreaChart>
               </ResponsiveContainer>
                         </div> : <p className="empty">Aucun trade clôturé sur cette sélection.</p>}</Panel>;
         })}
       </div>
-      <div className="analysis-charts-grid">
-        <Panel className="analysis-chart-card">
-          <div className="panel-heading">
-            <div>
-              <h2>Résultat par mois</h2>
-              <p className="footnote">Net après frais · clôtures New York.</p>
-            </div>
-            {monthly.length > 0 && <div className="plot-readout"><small>Net sur la période</small><strong>{signedMoney(monthly.reduce((sum, row) => sum + row.net, 0))}</strong></div>}
+      <Panel className="analysis-chart-card monthly-performance">
+        <div className="panel-heading">
+          <div>
+            <h2>Performance mensuelle</h2>
+            <p className="footnote">{resultUnit === "net" ? "Résultat net de chaque mois après frais · filtres actifs · clôtures New York." : "R cumulés par mois · risque renseigné sur " + tradeCount(stats.riskCount) + " / " + tradeCount(stats.count) + " trades."}</p>
           </div>
-          {monthly.length ? (
-            <div className="chart" role="img" aria-label="Résultat net par mois">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={monthly} margin={{ top: 10, right: 8, bottom: 0, left: 0 }}>
-                  <CartesianGrid vertical={false} stroke="var(--border)" strokeDasharray="3 5" />
-                  <XAxis dataKey="label" tick={{ fill: "var(--muted)", fontSize: 10 }} tickLine={false} axisLine={false} minTickGap={12} />
-                  <YAxis tickFormatter={(value) => Math.abs(Number(value)) >= 1000 ? Math.round(Number(value) / 1000) + "k$" : Math.round(Number(value)) + "$"} tick={{ fill: "var(--muted)", fontSize: 10 }} tickLine={false} axisLine={false} width={44} />
-                  <Tooltip
-                    formatter={(value) => [money(Number(value)), "Résultat net"]}
-                    labelFormatter={(label) => String(label)}
-                    contentStyle={{ background: "var(--surface)", border: "1px solid var(--border-strong)", borderRadius: 8 }}
-                    cursor={{ fill: "#ffffff04" }}
-                  />
-                  <ReferenceLine y={0} stroke="var(--muted)" strokeOpacity={0.65} />
-                  <Bar dataKey="net" radius={[3, 3, 0, 0]} maxBarSize={58} isAnimationActive={false}>
-                    {monthly.map((row) => <Cell key={row.month} fill={row.net >= 0 ? "var(--green)" : "var(--red)"} />)}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          ) : <p className="empty">Aucun mois clôturé sur cette sélection.</p>}
-        </Panel>
+          {monthly.length > 0 && <div className="plot-readout"><small>{resultUnit === "net" ? "Net sur la période" : "R cumulés"}</small><strong>{resultUnit === "net" ? signedMoney(monthly.reduce((sum, row) => sum + row.net, 0)) : r(monthly.reduce((sum, row) => sum + row.r, 0))}</strong></div>}
+        </div>
+        {monthly.length ? (
+          <div className="chart chart-drill" role="img" aria-label={resultUnit === "net" ? "Résultat net par mois" : "R cumulés par mois"}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={monthly} margin={{ top: 10, right: 8, bottom: 0, left: 0 }}>
+                <CartesianGrid vertical={false} stroke="var(--border)" strokeDasharray="3 5" />
+                <XAxis dataKey="label" tick={{ fill: "var(--muted)", fontSize: 10 }} tickLine={false} axisLine={false} minTickGap={12} />
+                <YAxis tickFormatter={(value) => resultUnit === "net" ? (Math.abs(Number(value)) >= 1000 ? Math.round(Number(value) / 1000) + "k$" : Math.round(Number(value)) + "$") : num(Number(value), 1) + "R"} tick={{ fill: "var(--muted)", fontSize: 10 }} tickLine={false} axisLine={false} width={44} />
+                <Tooltip
+                  cursor={{ fill: "#ffffff04" }}
+                  content={({ active, payload }) => {
+                    if (!active || !payload?.length) return null;
+                    const row = payload[0].payload as (typeof monthly)[number];
+                    return <div className="chart-tooltip">
+                      <strong>{row.label}</strong>
+                      <p>Résultat net <b className="mono">{signedMoney(row.net)}</b></p>
+                      {row.rated > 0 && <p>R cumulés <b className="mono">{r(row.r)}</b>{row.rated < row.count ? " · " + row.rated + "/" + row.count + " risqués" : ""}</p>}
+                      <p>{tradeCount(row.count)} · {num(row.wins / row.count * 100, 1)} % de réussite</p>
+                    </div>;
+                  }}
+                />
+                <ReferenceLine y={0} stroke="var(--muted)" strokeOpacity={0.65} />
+                <Bar dataKey={resultUnit === "net" ? "net" : "r"} radius={[3, 3, 0, 0]} maxBarSize={58} isAnimationActive={false} onClick={(entry: unknown) => {
+                  const row = (entry as { payload?: (typeof monthly)[number] })?.payload;
+                  if (row?.ids.length) onInspect?.({ label: "Analyse · " + row.label, ids: row.ids });
+                }}>
+                  {monthly.map((row) => <Cell key={row.month} fill={row[resultUnit] >= 0 ? "var(--green)" : "var(--red)"} />)}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        ) : <p className="empty">Aucun mois clôturé sur cette sélection.</p>}
+        {monthly.length > 0 && <details className="monthly-performance-values">
+          <summary>Voir les résultats mensuels</summary>
+          <div className="table-scroll">
+            <table>
+              <caption className="sr-only">Performance mensuelle de la sélection</caption>
+              <thead><tr><th scope="col">Mois</th><th scope="col">Résultat net</th><th scope="col">R cumulés</th><th scope="col">Trades</th><th scope="col">Réussite</th></tr></thead>
+              <tbody>{monthly.map(row => <tr key={row.month}>
+                <th scope="row">{row.label}</th><td className={row.net >= 0 ? "positive mono" : "negative mono"}>{signedMoney(row.net)}</td><td>{row.rated ? r(row.r) : "—"}</td><td>{row.count}</td><td>{num(row.wins / row.count * 100, 1)} %</td>
+              </tr>)}</tbody>
+            </table>
+          </div>
+        </details>}
+      </Panel>
+
+      <div className="analysis-charts-grid">
+
         <Panel className="analysis-chart-card">
           <div className="panel-heading">
             <div>
@@ -1888,7 +2134,7 @@ function Analytics({
             {stats.riskCount > 0 && <div className="plot-readout"><small>Risque connu</small><strong>{tradeCount(stats.riskCount)}</strong></div>}
           </div>
           {stats.riskCount ? (
-            <div className="chart" role="img" aria-label="Distribution des résultats par tranche de R">
+            <div className="chart chart-drill" role="img" aria-label="Distribution des résultats par tranche de R">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={resultDistribution} margin={{ top: 20, right: 8, bottom: 0, left: 0 }}>
                   <CartesianGrid vertical={false} stroke="var(--border)" strokeDasharray="3 5" />
@@ -1900,7 +2146,10 @@ function Analytics({
                     contentStyle={{ background: "var(--surface)", border: "1px solid var(--border-strong)", borderRadius: 8 }}
                     cursor={{ fill: "#ffffff04" }}
                   />
-                  <Bar dataKey="count" label={{ position: "top", fill: "var(--text)", fontSize: 11 }} radius={[3, 3, 0, 0]} maxBarSize={54} isAnimationActive={false}>
+                  <Bar dataKey="count" label={{ position: "top", fill: "var(--text)", fontSize: 11 }} radius={[3, 3, 0, 0]} maxBarSize={54} isAnimationActive={false} onClick={(entry: unknown) => {
+                    const row = (entry as { payload?: (typeof resultDistribution)[number] })?.payload;
+                    if (row?.ids.length) onInspect?.({ label: "Analyse · " + row.label, ids: row.ids });
+                  }}>
                     {resultDistribution.map((row, index) => <Cell key={row.label} fill={index >= 3 ? "var(--green)" : "var(--red)"} />)}
                   </Bar>
                 </BarChart>
@@ -1979,6 +2228,46 @@ function Analytics({
             </div>
           ) : <p className="empty">Note les trades pour afficher la relation entre plan et résultat.</p>}
         </Panel>
+        <Panel className="analysis-chart-card">
+          <div className="panel-heading">
+            <div>
+              <h2>Performance par jour de la semaine</h2>
+              <p className="footnote">{resultUnit === "net" ? "Résultat net par jour de clôture · New York · filtres actifs." : "R cumulés par jour · risque renseigné sur " + tradeCount(stats.riskCount) + " / " + tradeCount(stats.count) + " trades."}</p>
+            </div>
+            {stats.count > 0 && <div className="plot-readout"><small>{resultUnit === "net" ? "Meilleur jour" : "Meilleur jour en R"}</small><strong>{resultUnit === "net" ? bestWeekday.label + " · " + signedMoney(bestWeekday.net) : bestWeekdayR.label + " · " + r(bestWeekdayR.r)}</strong></div>}
+          </div>
+          {stats.count ? (
+            <div className="chart chart-drill" role="img" aria-label={resultUnit === "net" ? "Résultat net par jour de la semaine" : "R cumulés par jour de la semaine"}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={weekdayRows} margin={{ top: 16, right: 8, bottom: 0, left: 0 }}>
+                  <CartesianGrid vertical={false} stroke="var(--border)" strokeDasharray="3 5" />
+                  <XAxis dataKey="label" tick={{ fill: "var(--muted)", fontSize: 11 }} tickLine={false} axisLine={false} />
+                  <YAxis tickFormatter={(value) => resultUnit === "net" ? (Math.abs(Number(value)) >= 1000 ? Math.round(Number(value) / 1000) + "k$" : Math.round(Number(value)) + "$") : num(Number(value), 1) + "R"} tick={{ fill: "var(--muted)", fontSize: 10 }} tickLine={false} axisLine={false} width={44} />
+                  <Tooltip
+                    cursor={{ fill: "#ffffff04" }}
+                    content={({ active, payload }) => {
+                      if (!active || !payload?.length) return null;
+                      const row = payload[0].payload as (typeof weekdayRows)[number];
+                      return <div className="chart-tooltip">
+                        <strong>{row.label}</strong>
+                        <p>Résultat net <b className="mono">{signedMoney(row.net)}</b></p>
+                        <p>R cumulés <b className="mono">{r(row.r)}</b></p>
+                        <p>{tradeCount(row.count)} · {row.count ? num(row.wins / row.count * 100, 1) : 0} % de réussite</p>
+                      </div>;
+                    }}
+                  />
+                  <ReferenceLine y={0} stroke="var(--muted)" strokeOpacity={0.65} />
+                  <Bar dataKey={resultUnit === "net" ? "net" : "r"} radius={[3, 3, 0, 0]} maxBarSize={54} isAnimationActive={false} onClick={(entry: unknown) => {
+                    const row = (entry as { payload?: (typeof weekdayRows)[number] })?.payload;
+                    if (row?.ids.length) onInspect?.({ label: "Analyse · " + row.label, ids: row.ids });
+                  }}>
+                    {weekdayRows.map((row) => <Cell key={row.label} fill={row[resultUnit] >= 0 ? "var(--green)" : "var(--red)"} />)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          ) : <p className="empty">Aucun trade clôturé sur cette sélection.</p>}
+        </Panel>
       </div>
       <div className="bottom-grid">
         <Panel>
@@ -1992,18 +2281,16 @@ function Analytics({
             <Field label="Comparer par"><select value={dimension} onChange={event => setDimension(event.target.value)}>
               {Object.keys(keys).map(key => <option key={key} value={key}>{labels[key] ?? key}</option>)}
             </select></Field>
-            <Field label="Résultat net"><select value={unit} onChange={event => setUnit(event.target.value === "r" ? "r" : "net")}>
-              <option value="net">Dollars ($)</option><option value="r">Multiples de risque (R)</option>
-            </select></Field>
+            
           </div>
-          <p className="footnote">{dimension === "heure" ? "Heure d’entrée à New York · " : ""}{unit === "r" ? `Risque initial renseigné sur ${stats.riskCount} / ${tradeCount(stats.count)}.` : "Gains et pertes après frais."}</p>
+          <p className="footnote">{dimension === "heure" ? "Heure d’entrée à New York · " : ""}{resultUnit === "r" ? `Risque initial renseigné sur ${stats.riskCount} / ${tradeCount(stats.count)}.` : "Gains et pertes après frais."}</p>
           {groups.length ? <div className="performance-bars">{groups.map(group => {
-            const value = group[unit];
-            const measurable = unit === "net" || group.riskCount > 0;
+            const value = group[resultUnit];
+            const measurable = resultUnit === "net" || group.riskCount > 0;
             return <button type="button" key={group.label} className="performance-row" onClick={() => inspectContext(group.label)}>
               <span>{group.label}<small>{group.count} {group.count === 1 ? "trade" : "trades"}</small></span>
               <span className="performance-track" aria-hidden="true"><i className={value < 0 ? "loss" : "gain"} style={{width: Math.abs(value) / scale * 50 + "%"}} /></span>
-              <strong>{measurable ? unit === "r" ? r(value) : signedMoney(value) : "—"}</strong>
+              <strong>{measurable ? resultUnit === "r" ? r(value) : signedMoney(value) : "—"}</strong>
             </button>;
           })}</div> : <p>Aucun trade clôturé sur cette sélection.</p>}
         </Panel>
@@ -2135,6 +2422,28 @@ function Analytics({
           prouve pas à lui seul une entrée trop précoce.
         </p>
       </Panel>
+      <Panel className="section-gap data-quality analysis-chart-card">
+        <div className="panel-heading">
+          <div>
+            <h2>Qualité des données</h2>
+            <p className="footnote">Champs manquants dans la sélection active · un clic ouvre les trades concernés.</p>
+          </div>
+          <div className="plot-readout"><small>Trades incomplets</small><strong>{tradeCount(qualityGaps)}</strong></div>
+        </div>
+        <div className="quality-grid">
+          {quality.map((item) => (
+            <button type="button" key={item.label} className="quality-item" disabled={!item.count} onClick={() => onInspect?.({ label: "Qualité · " + item.label, ids: item.ids })}>
+              <span>{item.label}<small>{item.count ? item.note : "Complet"}</small></span>
+              <strong>{item.count}</strong>
+            </button>
+          ))}
+        </div>
+      </Panel>
+      <MetricLedger trades={trades} />
+        </>
+      )}
+      {view === "wins" && <WinLossView trades={trades} />}
+      {view === "compare" && <CompareView trades={trades} />}
     </>
   );
 }
@@ -2302,6 +2611,584 @@ function Leaks({
     </>
   );
 }
+function WinLossView({ trades }: { trades: Trade[] }) {
+  const data = useMemo(() => {
+    const rows = trades.map((trade) => ({
+      trade,
+      metrics: calculateTrade(trade),
+    }));
+    const wins = rows.filter((row) => row.metrics.net > 0);
+    const losses = rows.filter((row) => row.metrics.net < 0);
+    const flats = rows.filter((row) => row.metrics.net === 0);
+    const hours = (list: typeof rows) =>
+      list.length
+        ? list.reduce(
+            (sum, row) =>
+              sum +
+              (Date.parse(row.trade.exitedAt) -
+                Date.parse(row.trade.enteredAt)) /
+                3_600_000,
+            0,
+          ) / list.length
+        : 0;
+    const plan = (list: typeof rows) => {
+      const rated = list.filter((row) => isPlanRated(row.trade));
+      return rated.length
+        ? rated.reduce((sum, row) => sum + row.trade.planScore!, 0) /
+            rated.length
+        : null;
+    };
+    const side = (list: typeof rows) => ({
+      count: list.length,
+      net: list.reduce((sum, row) => sum + row.metrics.net, 0),
+      r: list.reduce((sum, row) => sum + row.metrics.realizedR, 0),
+      averageR: list.length
+        ? list.reduce((sum, row) => sum + row.metrics.realizedR, 0) /
+          list.length
+        : 0,
+      best: list.length ? Math.max(...list.map((row) => row.metrics.net)) : 0,
+      worst: list.length ? Math.min(...list.map((row) => row.metrics.net)) : 0,
+      hours: hours(list),
+      plan: plan(list),
+    });
+    const setups = breakdown(
+      trades,
+      (trade) => trade.setup.trim() || "Non renseigné",
+      0,
+    )
+      .map((group) => {
+        const list = trades.filter(
+          (trade) => (trade.setup.trim() || "Non renseigné") === group.label,
+        );
+        return {
+          label: group.label,
+          count: list.length,
+          gain: list
+            .filter((trade) => calculateTrade(trade).net > 0)
+            .reduce((sum, trade) => sum + calculateTrade(trade).net, 0),
+          loss: list
+            .filter((trade) => calculateTrade(trade).net < 0)
+            .reduce((sum, trade) => sum + calculateTrade(trade).net, 0),
+        };
+      })
+      .sort((a, b) => Math.abs(b.gain + b.loss) - Math.abs(a.gain + a.loss))
+      .slice(0, 6);
+    return {
+      wins: side(wins),
+      losses: side(losses),
+      flats: flats.length,
+      setups,
+    };
+  }, [trades]);
+  const cards = [
+    { key: "wins", title: "Trades gagnants", tone: "gain", value: data.wins },
+    {
+      key: "losses",
+      title: "Trades perdants",
+      tone: "loss",
+      value: data.losses,
+    },
+  ] as const;
+  return (
+    <>
+      <Panel className="winloss-share">
+        <div className="panel-heading">
+          <div>
+            <h2>Répartition de la sélection</h2>
+            <p className="footnote">
+              Proportion de trades gagnants et perdants · neutres exclus.
+            </p>
+          </div>
+          <span className="mono">
+            {tradeCount(data.wins.count + data.losses.count)}
+          </span>
+        </div>
+        <BalanceBar
+          positive={data.wins.count}
+          negative={data.losses.count}
+          label={
+            data.wins.count +
+            " gagnants, " +
+            data.losses.count +
+            " perdants"
+          }
+        />
+        <div className="range-bar-labels">
+          <span className="positive">
+            {tradeCount(data.wins.count)} gagnants
+          </span>
+          <span className="negative">
+            {tradeCount(data.losses.count)} perdants
+          </span>
+        </div>
+      </Panel>
+      <div className="winloss-grid">
+        {cards.map((card) => (
+          <Panel className={"winloss-card " + card.tone} key={card.key}>
+            <div className="panel-heading">
+              <div>
+                <span className="eyebrow">{card.title}</span>
+                <h2
+                  className={
+                    card.tone === "gain" ? "positive" : "negative"
+                  }
+                >
+                  {signedMoney(card.value.net)}
+                </h2>
+              </div>
+              <span className="winloss-count mono">
+                {tradeCount(card.value.count)}
+              </span>
+            </div>
+            <dl className="winloss-facts">
+              <div>
+                <dt>R cumulés</dt>
+                <dd className="mono">{card.value.r ? r(card.value.r) : "—"}</dd>
+              </div>
+              <div>
+                <dt>R moyen</dt>
+                <dd className="mono">
+                  {card.value.count ? r(card.value.averageR) : "—"}
+                </dd>
+              </div>
+              <div>
+                <dt>Meilleur</dt>
+                <dd className="mono positive">
+                  {signedMoney(card.value.best)}
+                </dd>
+              </div>
+              <div>
+                <dt>Pire</dt>
+                <dd className="mono negative">{signedMoney(card.value.worst)}</dd>
+              </div>
+              <div>
+                <dt>Durée moyenne</dt>
+                <dd className="mono">
+                  {card.value.count ? num(card.value.hours, 1) + " h" : "—"}
+                </dd>
+              </div>
+              <div>
+                <dt>Score de plan</dt>
+                <dd className="mono">
+                  {card.value.plan === null
+                    ? "—"
+                    : num(card.value.plan, 1) + " / 10"}
+                </dd>
+              </div>
+            </dl>
+          </Panel>
+        ))}
+      </div>
+      <Panel>
+        <div className="panel-heading">
+          <div>
+            <h2>Écart par setup</h2>
+            <p className="footnote">
+              Somme des gains et des pertes, par setup · six setups les plus
+              contributifs.
+            </p>
+          </div>
+        </div>
+        {data.setups.length ? (
+          <div className="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Setup</th>
+                  <th>Effectif</th>
+                  <th>Gains</th>
+                  <th>Pertes</th>
+                  <th>Écart net</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.setups.map((row) => (
+                  <tr key={row.label}>
+                    <td>{row.label}</td>
+                    <td>{tradeCount(row.count)}</td>
+                    <td className="positive">{signedMoney(row.gain)}</td>
+                    <td className="negative">{signedMoney(row.loss)}</td>
+                    <td
+                      className={
+                        row.gain + row.loss >= 0 ? "positive" : "negative"
+                      }
+                    >
+                      {signedMoney(row.gain + row.loss)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="empty">Aucun setup renseigné sur cette sélection.</p>
+        )}
+        {data.flats > 0 && (
+          <p className="footnote">
+            {tradeCount(data.flats)} trade(s) neutre(s) exclu(s) de la
+            comparaison.
+          </p>
+        )}
+      </Panel>
+    </>
+  );
+}
+function CompareView({ trades }: { trades: Trade[] }) {
+  const [axis, setAxis] = useState("setup");
+  const [leftValue, setLeftValue] = useState("");
+  const [rightValue, setRightValue] = useState("");
+  const keys: Record<string, { label: string; read: (trade: Trade) => string }> =
+    {
+      setup: {
+        label: "Setup",
+        read: (trade) => trade.setup.trim() || "Non renseigné",
+      },
+      session: {
+        label: "Session",
+        read: (trade) => trade.session?.trim() || "Non renseigné",
+      },
+      instrument: { label: "Instrument", read: (trade) => trade.instrument },
+      timeframe: {
+        label: "Unité de temps",
+        read: (trade) => trade.timeframe?.trim() || "Non renseigné",
+      },
+      direction: {
+        label: "Direction",
+        read: (trade) => (trade.direction === "LONG" ? "Achat" : "Vente"),
+      },
+    };
+  const active = keys[axis];
+  const values = useMemo(
+    () => [...new Set(trades.map(active.read))].sort(),
+    [trades, axis],
+  );
+  const left = values.includes(leftValue) ? leftValue : (values[0] ?? "");
+  const right =
+    values.includes(rightValue) && rightValue !== left
+      ? rightValue
+      : (values.find((value) => value !== left) ?? "");
+  const leftTrades = useMemo(
+    () => trades.filter((trade) => active.read(trade) === left),
+    [trades, axis, left],
+  );
+  const rightTrades = useMemo(
+    () => trades.filter((trade) => active.read(trade) === right),
+    [trades, axis, right],
+  );
+  const a = summarize(leftTrades);
+  const b = summarize(rightTrades);
+  const series = useMemo(() => {
+    const build = (list: Trade[]) => {
+      const days = groupByDay(list);
+      let running = 0;
+      return Object.entries(days)
+        .sort(([x], [y]) => x.localeCompare(y))
+        .map(([date, value]) => ({ date, value: (running += value.net) }));
+    };
+    const leftSeries = build(leftTrades);
+    const rightSeries = build(rightTrades);
+    const dates = [
+      ...new Set([
+        ...leftSeries.map((point) => point.date),
+        ...rightSeries.map((point) => point.date),
+      ]),
+    ].sort();
+    let leftLast = 0;
+    let rightLast = 0;
+    return dates.map((date) => {
+      const leftPoint = leftSeries.find((point) => point.date === date);
+      const rightPoint = rightSeries.find((point) => point.date === date);
+      if (leftPoint) leftLast = leftPoint.value;
+      if (rightPoint) rightLast = rightPoint.value;
+      return { date, left: leftLast, right: rightLast };
+    });
+  }, [leftTrades, rightTrades]);
+  const rows: {
+    label: string;
+    left: string;
+    right: string;
+    better?: "left" | "right";
+  }[] = [
+    { label: "Exécutions", left: tradeCount(a.count), right: tradeCount(b.count) },
+    {
+      label: "Résultat net",
+      left: signedMoney(a.net),
+      right: signedMoney(b.net),
+      better: a.net === b.net ? undefined : a.net > b.net ? "left" : "right",
+    },
+    {
+      label: "R cumulés",
+      left: a.riskCount ? r(a.r) : "—",
+      right: b.riskCount ? r(b.r) : "—",
+      better: a.r === b.r ? undefined : a.r > b.r ? "left" : "right",
+    },
+    {
+      label: "Espérance / trade",
+      left: a.riskCount ? r(a.expectancy) : "—",
+      right: b.riskCount ? r(b.expectancy) : "—",
+      better:
+        a.expectancy === b.expectancy
+          ? undefined
+          : a.expectancy > b.expectancy
+            ? "left"
+            : "right",
+    },
+    {
+      label: "Taux de réussite",
+      left: a.count ? num(a.winRate * 100, 1) + " %" : "—",
+      right: b.count ? num(b.winRate * 100, 1) + " %" : "—",
+      better:
+        a.winRate === b.winRate
+          ? undefined
+          : a.winRate > b.winRate
+            ? "left"
+            : "right",
+    },
+    {
+      label: "Profit factor",
+      left: a.profitFactor === null ? "—" : num(a.profitFactor),
+      right: b.profitFactor === null ? "—" : num(b.profitFactor),
+      better:
+        a.profitFactor === b.profitFactor ||
+        a.profitFactor === null ||
+        b.profitFactor === null
+          ? undefined
+          : a.profitFactor > b.profitFactor
+            ? "left"
+            : "right",
+    },
+    {
+      label: "Drawdown max.",
+      left: money(a.drawdown),
+      right: money(b.drawdown),
+      better:
+        a.drawdown === b.drawdown
+          ? undefined
+          : a.drawdown < b.drawdown
+            ? "left"
+            : "right",
+    },
+    {
+      label: "Risque renseigné",
+      left: tradeCount(a.riskCount) + " / " + tradeCount(a.count),
+      right: tradeCount(b.riskCount) + " / " + tradeCount(b.count),
+    },
+  ];
+  return (
+    <>
+      <Panel>
+        <div className="compare-controls">
+          <Field label="Comparer par">
+            <select
+              value={axis}
+              onChange={(event) => {
+                setAxis(event.target.value);
+                setLeftValue("");
+                setRightValue("");
+              }}
+            >
+              {Object.entries(keys).map(([key, value]) => (
+                <option key={key} value={key}>
+                  {value.label}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Sous-ensemble A">
+            <select value={left} onChange={(event) => setLeftValue(event.target.value)}>
+              {values.map((value) => (
+                <option key={value} value={value}>
+                  {value}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Sous-ensemble B">
+            <select
+              value={right}
+              onChange={(event) => setRightValue(event.target.value)}
+            >
+              {values.map((value) => (
+                <option key={value} value={value}>
+                  {value}
+                </option>
+              ))}
+            </select>
+          </Field>
+        </div>
+        {!values.length || !right ? (
+          <p className="empty">
+            Cette sélection ne contient pas deux valeurs comparables sur cet
+            axe.
+          </p>
+        ) : (
+          <>
+            <div className="table-scroll compare-table">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Métrique</th>
+                    <th>{left}</th>
+                    <th>{right}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((row) => (
+                    <tr key={row.label}>
+                      <td>{row.label}</td>
+                      <td className={row.better === "left" ? "compare-win" : ""}>
+                        {row.left}
+                      </td>
+                      <td className={row.better === "right" ? "compare-win" : ""}>
+                        {row.right}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {series.length > 1 && (
+              <div
+                className="chart compare-chart"
+                role="img"
+                aria-label={"Résultat cumulé comparé de " + left + " et " + right}
+              >
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={series} margin={{ top: 12, right: 14, bottom: 0, left: 0 }}>
+                    <CartesianGrid vertical={false} stroke="var(--border)" strokeDasharray="3 5" />
+                    <XAxis
+                      dataKey="date"
+                      minTickGap={40}
+                      tickFormatter={(value) =>
+                        String(value).slice(8) + "/" + String(value).slice(5, 7)
+                      }
+                      tick={{ fill: "var(--muted)", fontSize: 10 }}
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <YAxis
+                      width={54}
+                      tickFormatter={(value) => {
+                        const n = Number(value);
+                        return (
+                          (Math.abs(n) >= 1000 ? Math.round(n / 1000) + "k" : Math.round(n)) +
+                          " $"
+                        );
+                      }}
+                      tick={{ fill: "var(--muted)", fontSize: 10 }}
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <Tooltip
+                      formatter={(value, name) => [
+                        money(Number(value)),
+                        name === "left" ? left : right,
+                      ]}
+                      contentStyle={{
+                        background: "var(--surface)",
+                        border: "1px solid var(--border-strong)",
+                        borderRadius: 8,
+                      }}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="left"
+                      stroke="var(--green)"
+                      fill="var(--green)"
+                      fillOpacity={0.14}
+                      strokeWidth={2}
+                      isAnimationActive={false}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="right"
+                      stroke="var(--accent)"
+                      fill="var(--accent)"
+                      fillOpacity={0.1}
+                      strokeWidth={2}
+                      isAnimationActive={false}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+            <div className="range-bar-labels">
+              <span className="compare-legend left">{left}</span>
+              <span className="compare-legend right">{right}</span>
+            </div>
+          </>
+        )}
+      </Panel>
+    </>
+  );
+}
+function MetricLedger({ trades }: { trades: Trade[] }) {
+  const rows = useMemo(() => {
+    const stats = summarize(trades);
+    const rated = trades.filter(isPlanRated);
+    const days = Object.values(groupByDay(trades));
+    const hours = trades.length
+      ? trades.reduce(
+          (sum, trade) =>
+            sum +
+            (Date.parse(trade.exitedAt) - Date.parse(trade.enteredAt)) /
+              3_600_000,
+          0,
+        ) / trades.length
+      : 0;
+    const fees = trades.reduce((sum, trade) => sum + (trade.fees ?? 0), 0);
+    const volume = trades.reduce((sum, trade) => sum + trade.quantity, 0);
+    const list: [string, string, string?][] = [
+      ["Résultat net", signedMoney(stats.net), stats.net >= 0 ? "positive" : "negative"],
+      ["R cumulés", stats.riskCount ? r(stats.r) : "—"],
+      ["Exécutions", tradeCount(stats.count)],
+      ["Gagnants", tradeCount(trades.filter((trade) => calculateTrade(trade).net > 0).length), "positive"],
+      ["Perdants", tradeCount(trades.filter((trade) => calculateTrade(trade).net < 0).length), "negative"],
+      ["Neutres", tradeCount(trades.filter((trade) => calculateTrade(trade).net === 0).length)],
+      ["Taux de réussite", stats.count ? num(stats.winRate * 100, 1) + " %" : "—"],
+      ["Profit factor", stats.profitFactor === null ? "—" : num(stats.profitFactor)],
+      ["Espérance / trade", stats.riskCount ? r(stats.expectancy) : "—"],
+      ["Gain moyen", stats.averageWinR ? r(stats.averageWinR) : "—", "positive"],
+      ["Perte moyenne", stats.averageLossR ? r(stats.averageLossR) : "—", "negative"],
+      ["Meilleur trade", signedMoney(stats.best), "positive"],
+      ["Pire trade", signedMoney(stats.worst), "negative"],
+      ["Drawdown max.", money(stats.drawdown)],
+      ["Série max. gagnante", tradeCount(stats.maxWinStreak)],
+      ["Série max. perdante", tradeCount(stats.maxLossStreak)],
+      ["Risque renseigné", tradeCount(stats.riskCount) + " / " + tradeCount(stats.count)],
+      ["Score de plan moyen", rated.length ? num(rated.reduce((sum, trade) => sum + trade.planScore!, 0) / rated.length, 1) + " / 10" : "—"],
+      ["Durée moyenne", trades.length ? num(hours, 1) + " h" : "—"],
+      ["Frais totaux", money(fees)],
+      ["Volume total", num(volume, 0)],
+      ["Setups distincts", tradeCount(new Set(trades.map((trade) => trade.setup.trim()).filter(Boolean)).size)],
+      ["Instruments distincts", tradeCount(new Set(trades.map((trade) => trade.instrument)).size)],
+      ["Jours tradés", tradeCount(days.length)],
+      ["Jours gagnants", tradeCount(days.filter((day) => day.net > 0).length), "positive"],
+      ["Jours perdants", tradeCount(days.filter((day) => day.net < 0).length), "negative"],
+    ];
+    return list;
+  }, [trades]);
+  return (
+    <Panel className="metric-ledger-panel">
+      <div className="panel-heading">
+        <div>
+          <h2>Relevé des métriques</h2>
+          <p className="footnote">
+            Toutes les valeurs de la sélection, sans survol ni infobulle.
+          </p>
+        </div>
+      </div>
+      <dl className="metric-ledger">
+        {rows.map(([label, value, tone]) => (
+          <div key={label}>
+            <dt>{label}</dt>
+            <dd className={"mono " + (tone ?? "")}>{value}</dd>
+          </div>
+        ))}
+      </dl>
+    </Panel>
+  );
+}
 function Calendar({
   trades,
   date,
@@ -2325,6 +3212,22 @@ function Calendar({
       0,
     ).getDate();
   const monthly = trades.filter((t) => nyDate(t.exitedAt).startsWith(month));
+  const monthDays = Object.entries(days).filter(([key]) =>
+    key.startsWith(month),
+  );
+  const bestDay = monthDays.length
+    ? Math.max(...monthDays.map(([, value]) => value.net))
+    : 0;
+  const worstDay = monthDays.length
+    ? Math.min(...monthDays.map(([, value]) => value.net))
+    : 0;
+  const winsByDay: Record<string, number> = {};
+  for (const trade of monthly) {
+    if (calculateTrade(trade).net > 0) {
+      const key = nyDate(trade.exitedAt);
+      winsByDay[key] = (winsByDay[key] ?? 0) + 1;
+    }
+  }
   function changeMonth(delta: number) {
     const d = new Date(month + "-15T12:00Z");
     d.setUTCMonth(d.getUTCMonth() + delta);
@@ -2397,11 +3300,30 @@ function Calendar({
             >
               <span>{i + 1}</span>
               <strong>{value ? r(value.r) : "—"}</strong>
-              <small>{value ? value.count + " trades" : "Sans trade"}</small>
+              <small>
+                {value
+                  ? value.count +
+                    " trades · " +
+                    Math.round(((winsByDay[d] ?? 0) / value.count) * 100) +
+                    " %"
+                  : "Sans trade"}
+              </small>
             </button>
           );
         })}
       </div>
+      <RangeBar
+        min={worstDay}
+        max={bestDay}
+        lowLabel={signedMoney(worstDay)}
+        highLabel={signedMoney(bestDay)}
+        label={
+          "Amplitude du mois : de " +
+          signedMoney(worstDay) +
+          " à " +
+          signedMoney(bestDay)
+        }
+      />
       <div className="week-summaries">
         {Array.from({ length: Math.ceil((last + offset) / 7) }, (_, week) => {
           const start = week * 7 - offset + 1,

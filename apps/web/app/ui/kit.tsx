@@ -16,6 +16,151 @@ export const r = (n: number) =>
   (n > 0 ? "+" : n < 0 ? "−" : "") + num(Math.abs(n)) + "R";
 export const signedMoney = (n: number) =>
   (n > 0 ? "+" : n < 0 ? "−" : "") + money(Math.abs(n));
+export function Sparkline({
+  values,
+  tone = "accent",
+  height = 26,
+  area = false,
+}: {
+  values: number[];
+  tone?: string;
+  height?: number;
+  area?: boolean;
+}) {
+  const gradientId = useId().replace(/:/g, "");
+  if (values.length < 2)
+    return <span className="sparkline-empty" aria-hidden="true" />;
+  const min = Math.min(0, ...values);
+  const max = Math.max(0, ...values);
+  const span = max - min || 1;
+  const y = (value: number) => 26 - ((value - min) / span) * 24;
+  const coords = values.map(
+    (value, index) =>
+      (index / (values.length - 1)) * 100 + "," + y(value).toFixed(2),
+  );
+  return (
+    <svg
+      className={"sparkline " + tone}
+      viewBox="0 0 100 28"
+      preserveAspectRatio="none"
+      style={{ height }}
+      aria-hidden="true"
+    >
+      {area && (
+        <defs>
+          <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="currentColor" stopOpacity="0.34" />
+            <stop offset="100%" stopColor="currentColor" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+      )}
+      <line className="sparkline-zero" x1="0" x2="100" y1={y(0)} y2={y(0)} />
+      {area && (
+        <polygon
+          points={"0,28 " + coords.join(" ") + " 100,28"}
+          fill={"url(#" + gradientId + ")"}
+        />
+      )}
+      <polyline points={coords.join(" ")} vectorEffect="non-scaling-stroke" />
+    </svg>
+  );
+}
+export function Ring({
+  value,
+  label,
+}: {
+  value: number;
+  label?: string;
+}) {
+  const pct = Math.max(0, Math.min(100, value));
+  return (
+    <svg
+      className="edge-ring"
+      viewBox="0 0 40 40"
+      role="img"
+      aria-label={label ?? Math.round(pct) + " %"}
+    >
+      <circle className="edge-ring-track" cx="20" cy="20" r="15" />
+      <circle
+        className="edge-ring-value"
+        cx="20"
+        cy="20"
+        r="15"
+        pathLength={100}
+        strokeDasharray={pct + " 100"}
+      />
+    </svg>
+  );
+}
+export function Gauge({
+  value,
+  label,
+}: {
+  value: number;
+  label?: string;
+}) {
+  const pct = Math.max(0, Math.min(100, value));
+  return (
+    <svg
+      className="gauge"
+      viewBox="0 0 60 34"
+      role="img"
+      aria-label={label ?? Math.round(pct) + " %"}
+    >
+      <path className="gauge-track" d="M6 30a24 24 0 0 1 48 0" pathLength={100} />
+      <path
+        className="gauge-value"
+        d="M6 30a24 24 0 0 1 48 0"
+        pathLength={100}
+        strokeDasharray={pct + " 100"}
+      />
+    </svg>
+  );
+}
+export function BalanceBar({
+  positive,
+  negative,
+  label,
+}: {
+  positive: number;
+  negative: number;
+  label: string;
+}) {
+  const total = positive + negative || 1;
+  return (
+    <div className="balance-bar" role="img" aria-label={label}>
+      <i className="gain" style={{ width: (positive / total) * 100 + "%" }} />
+      <i className="loss" style={{ width: (negative / total) * 100 + "%" }} />
+    </div>
+  );
+}
+export function RangeBar({
+  min,
+  max,
+  lowLabel,
+  highLabel,
+  label,
+}: {
+  min: number;
+  max: number;
+  lowLabel: string;
+  highLabel: string;
+  label: string;
+}) {
+  const span = max - min || 1;
+  const zero = Math.max(0, Math.min(100, ((0 - min) / span) * 100));
+  return (
+    <div className="range-bar" role="img" aria-label={label}>
+      <div className="range-bar-track" aria-hidden="true">
+        <i className="range-bar-zero" style={{ left: zero + "%" }} />
+      </div>
+      <div className="range-bar-labels">
+        <span className="negative">{lowLabel}</span>
+        <span className="positive">{highLabel}</span>
+      </div>
+    </div>
+  );
+}
 export function Panel({
   children,
   className = "",
@@ -184,17 +329,23 @@ export function Stat({
   label,
   value,
   sub,
+  meta,
   tone = "",
+  graphic,
 }: {
-  label: string;
+  label: ReactNode;
   value: ReactNode;
   sub?: ReactNode;
+  meta?: ReactNode;
   tone?: string;
+  graphic?: ReactNode;
 }) {
   return (
     <div className="stat">
       <dt>{label}</dt>
       <dd className={"mono " + tone}>{value}</dd>
+      {meta && <div className="stat-meta">{meta}</div>}
+      {graphic && <div className="stat-visual">{graphic}</div>}
       {sub && <div className="stat-sub">{sub}</div>}
     </div>
   );

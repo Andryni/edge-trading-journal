@@ -22,6 +22,8 @@ export type JournalOptions = {
   day?: string;
   exitReason?: string;
   review?: "all" | "pending" | "reviewed";
+  streak?: "all" | "gain" | "loss";
+  density?: "comfortable" | "compact";
 };
 export const DEFAULT_JOURNAL_OPTIONS: JournalOptions = {
   groupLimit: 12,
@@ -106,11 +108,14 @@ export function journalTrades(
   plan: PlanFilter,
   exitReason = "all",
   review = "all",
+  streak: "all" | "gain" | "loss" = "all",
 ) {
   const query = search.trim().toLocaleLowerCase("fr-FR");
+  const streakIds = streak === "all" ? null : new Set(longestStreak(trades, streak));
   return trades
     .filter(
       (trade) =>
+        (!streakIds || streakIds.has(trade.id)) &&
         matchesResult(trade, result) &&
         (exitReason === "all" || (trade.exitReason ?? "UNKNOWN") === exitReason) &&
         (review === "all" || (trade.reviewStatus === "REVIEWED" ? "reviewed" : "pending") === review) &&
@@ -145,4 +150,16 @@ export function journalGroups(trades: Trade[], mode: "days" | "weeks") {
       stats: summarize(items),
       range: mode === "weeks" ? weekRange(date) : { from: date, to: date },
     }));
+}
+
+/** Earliest longest run in closing order; breakevens interrupt both kinds. */
+export function longestStreak(trades: Trade[], kind: "gain" | "loss"): string[] {
+  let best: string[] = [], current: string[] = [];
+  for (const trade of [...trades].sort((a, b) => a.exitedAt.localeCompare(b.exitedAt))) {
+    if (matchesResult(trade, kind)) {
+      current.push(trade.id);
+      if (current.length > best.length) best = [...current];
+    } else current = [];
+  }
+  return best;
 }

@@ -1,8 +1,10 @@
 "use client";
+import { useEffect, useRef, useState } from "react";
 import { InstrumentMark } from "./instrument-mark";
 import {
   ArrowUpRight,
   CalendarDays,
+  Check,
   FileText,
   Image as ImageIcon,
   Pencil,
@@ -10,15 +12,16 @@ import {
 } from "lucide-react";
 import {
   calculateTrade,
+  EXIT_REASONS,
   localDateTime,
   summarize,
   type Journal,
   type Trade,
 } from "@edge/core";
-import { r, signedMoney, money } from "./kit";
+import { r, signedMoney, money, Modal } from "./kit";
 import { TradeStatus } from "./trade-ui";
 import { dateLabel } from "./view-data";
-import { Gallery } from "./screenshots";
+import { CaptureImage, ImageCanvas } from "./screenshots";
 
 export default function JournalInspector({
   trade,
@@ -30,6 +33,7 @@ export default function JournalInspector({
   onEdit,
   onDelete,
   onReview,
+  onToggleReview,
 }: {
   trade?: Trade;
   trades: Trade[];
@@ -40,14 +44,57 @@ export default function JournalInspector({
   onEdit: (trade: Trade) => void;
   onDelete: (trade: Trade) => void;
   onReview: (day: string) => void;
+  onToggleReview?: (trade: Trade) => void;
 }) {
+  const railRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLElement>(null);
+  const [captureId, setCaptureId] = useState<string | null>(null);
+  const capture = trade?.screenshots?.find(shot => shot.id === captureId);
+  useEffect(() => {
+    const rail = railRef.current, panel = panelRef.current;
+    if (!rail || !panel) return;
+    let frame = 0;
+    const sync = () => {
+      const desktop = window.matchMedia("(min-width: 1101px)").matches;
+      const top = parseFloat(getComputedStyle(rail).getPropertyValue("--journal-inspector-top")) || 294;
+      const bounds = rail.getBoundingClientRect();
+      const pinned = desktop && bounds.top <= top;
+      rail.style.minHeight = desktop ? `${panel.offsetHeight}px` : "";
+      panel.dataset.pinned = String(pinned);
+      panel.style.left = pinned ? `${bounds.left}px` : "";
+      panel.style.width = pinned ? `${bounds.width}px` : "";
+    };
+    const schedule = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(sync);
+    };
+    const observer = new ResizeObserver(schedule);
+    observer.observe(rail);
+    observer.observe(panel);
+    const stats = document.querySelector(".journal-stats");
+    if (stats) observer.observe(stats);
+    window.addEventListener("scroll", schedule, { passive: true });
+    window.addEventListener("resize", schedule);
+    sync();
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+      window.removeEventListener("scroll", schedule);
+      window.removeEventListener("resize", schedule);
+    };
+  }, []);
+  const reviewed = trade?.reviewStatus === "REVIEWED";
+  const price = (value: number) =>
+    value.toLocaleString("fr-FR", { maximumFractionDigits: 4 });
   const metrics = trade ? calculateTrade(trade) : null;
   const enteredAt = trade ? localDateTime(trade.enteredAt) : "";
   const planScore = trade?.planScore ?? 0;
   const session = day ? summarize(trades) : null;
   const review = journal.reviews.find((review) => review.date === day);
   return (
+    <div className="journal-inspector-slot" ref={railRef} data-active={active}>
     <aside
+      ref={panelRef}
       className="journal-inspector"
       data-active={active}
       aria-label="Détail de la sélection"
@@ -118,6 +165,17 @@ export default function JournalInspector({
             {journal.accounts.find((account) => account.id === trade.accountId)
               ?.name ?? "Compte non renseigné"}
           </p>
+          {onToggleReview && (
+            <button
+              type="button"
+              className="review-toggle"
+              aria-pressed={reviewed}
+              onClick={() => onToggleReview(trade)}
+            >
+              <Check size={13} aria-hidden="true" />
+              {reviewed ? "Revue terminée" : "Marquer comme revu"}
+            </button>
+          )}
           <div className="inspector-outcome">
             <div className="inspector-result">
               <span className="eyebrow">Résultat net</span>
@@ -165,6 +223,45 @@ export default function JournalInspector({
               <dd>{trade.mentalBefore || "Non renseigné"}</dd>
             </div>
           </dl>
+          <section className="inspector-executions">
+            <div className="inspector-executions-head">
+              <span className="eyebrow">EXÉCUTIONS</span>
+              <span className="mono">
+                {1 + (trade.exits?.length ?? 0)}{" "}
+                {trade.exits?.length ? "remplissages" : "remplissage"}
+              </span>
+            </div>
+            <ol>
+              <li>
+                <span className="exec-tag entry">Entrée</span>
+                <span className="exec-detail">
+                  {trade.direction === "LONG" ? "Achat" : "Vente"} ·{" "}
+                  {trade.quantity} × {price(trade.entry)}
+                </span>
+                <small className="mono">
+                  {localDateTime(trade.enteredAt).slice(11, 16)}
+                </small>
+              </li>
+              {(trade.exits ?? []).map((exit) => (
+                <li key={exit.id}>
+                  <span className="exec-tag exit">Sortie</span>
+                  <span className="exec-detail">
+                    {exit.quantity} × {price(exit.price)} ·{" "}
+                    {EXIT_REASONS[exit.reason]}
+                  </span>
+                  <small className="mono">
+                    {localDateTime(exit.at).slice(11, 16)}
+                  </small>
+                </li>
+              ))}
+            </ol>
+            {!trade.exits?.length && (
+              <p className="footnote">
+                Sortie unique enregistrée. Les sorties partielles apparaissent
+                ici, dans l’ordre du marché.
+              </p>
+            )}
+          </section>
           <div className="inspector-note">
             <span className="inspector-note-icon">
               <FileText size={15} aria-hidden="true" />
@@ -177,9 +274,12 @@ export default function JournalInspector({
             </div>
           </div>
           {trade.screenshots?.length ? (
-            <div className="inspector-capture">
-              <Gallery shots={trade.screenshots.slice(0, 1)} />
-            </div>
+            <button type="button" className="inspector-capture-button"
+              onClick={() => setCaptureId(trade.screenshots?.[0]?.id ?? null)}>
+              <CaptureImage src={trade.screenshots[0].data} alt="Aperçu de la première capture" />
+              <span>{trade.screenshots.length} capture{trade.screenshots.length > 1 ? "s" : ""} · Voir en grand</span>
+              <ArrowUpRight size={14} aria-hidden="true" />
+            </button>
           ) : (
             <div className="inspector-no-capture">
               <ImageIcon size={16} aria-hidden="true" />
@@ -227,5 +327,16 @@ export default function JournalInspector({
         </div>
       )}
     </aside>
+    {capture && <Modal title="Captures du trade" onClose={() => setCaptureId(null)}>
+      <div className="inspector-capture-picker" role="group" aria-label="Choisir une capture">
+        {trade?.screenshots?.map((shot, index) => <button type="button" className="btn secondary" key={shot.id}
+          aria-pressed={shot.id === capture.id} onClick={() => setCaptureId(shot.id)}>
+          {index + 1} · {shot.phase}
+        </button>)}
+      </div>
+      <ImageCanvas shot={capture} />
+      {capture.caption && <p className="pre-line">{capture.caption}</p>}
+    </Modal>}
+    </div>
   );
 }

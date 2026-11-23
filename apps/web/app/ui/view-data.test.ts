@@ -1,6 +1,6 @@
 ﻿import { describe, expect, it } from "vitest";
 import { createDemoTrades, type Trade } from "@edge/core";
-import { calendarRange, journalGroups, journalTrades, scopeTrades, tradePlan, weekRange } from "./view-data";
+import { longestStreak, calendarRange, journalGroups, journalTrades, scopeTrades, tradePlan, weekRange } from "./view-data";
 const base = createDemoTrades()[0];
 const trade = (id: string, day: string, exit = 102, extra: Partial<Trade> = {}): Trade => ({
   ...base, id, enteredAt: day + "T15:00:00Z", exitedAt: day + "T16:00:00Z", instrument: "NQ", direction: "LONG", entry: 100, stop: 99, target: 104, quantity: 1, fees: 0, exit, setup: "Rejet", planScore: 9, notes: "", tags: [], ...extra,
@@ -53,5 +53,22 @@ describe("UI selections and review context", () => {
     expect(journalTrades([], "NQ", "date", "all", "all")).toEqual([]);
     expect(journalGroups([], "days")).toEqual([]);
     expect(journalGroups([], "weeks")).toEqual([]);
+  });
+});
+
+ describe("KPI streak filters", () => {
+  it("keeps the first longest run, stops at flat trades, and does not mutate order", () => {
+    const rows = [trade("a", "2026-11-01"), trade("b", "2026-11-02"), trade("flat", "2026-11-03", 100), trade("c", "2026-11-04"), trade("d", "2026-11-05"), trade("loss", "2026-11-06", 99)];
+    const reversed = [...rows].reverse();
+    expect(longestStreak(reversed, "gain")).toEqual(["a", "b"]);
+    expect(longestStreak(reversed, "loss")).toEqual(["loss"]);
+    expect(reversed[0].id).toBe("loss");
+    expect(longestStreak([], "gain")).toEqual([]);
+  });
+  it("intersects search, plan, review and exit without joining interrupted runs", () => {
+    const rows = [trade("a", "2026-11-01", 102, {reviewStatus: "REVIEWED", exitReason: "TP"}), trade("b", "2026-11-02", 102, {reviewStatus: "PENDING", exitReason: "TP"}), trade("loss", "2026-11-03", 99), trade("c", "2026-11-04", 102, {reviewStatus: "REVIEWED", exitReason: "TP"})];
+    expect(journalTrades(rows, "NQ", "date", "gain", "respected", "TP", "reviewed", "gain").map(t => t.id)).toEqual(["a"]);
+    expect(journalTrades(rows, "", "date", "loss", "all", "all", "all", "gain")).toEqual([]);
+    expect(journalTrades(rows, "", "date", "all", "all", "all", "all", "all")).toHaveLength(4);
   });
 });

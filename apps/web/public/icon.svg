@@ -1,1 +1,9 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="-4 -8 96 96"><defs><linearGradient id="face" x2=".8" y2="1" gradientUnits="objectBoundingBox"><stop stop-color="#aff4ff"/><stop offset=".47" stop-color="#7598ff"/><stop offset="1" stop-color="#ab81ff"/></linearGradient></defs><g transform="translate(5 4)"><path fill="url(#face)" d="M6 21 20 7h54L60 21H32L18 35H6zm0 19 15-15h36L44 38H32l-8 8h32L42 60H6z"/><path fill="#4750ac" d="m6 60 36 0 14-14v6L43 66H6zm54-39L74 7v6L61 27H38l-6-6z"/><path fill="#d6f4ff" d="M20 7h54l-3 3H17z"/></g></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect width="64" height="64" fill="#141416"/>
+  <g transform="translate(6.4 6.4) scale(0.8)" fill="none" stroke="#64e4ba" stroke-width="4">
+    <path d="M6 25V9h17M58 39v16H41"/>
+    <path d="M16 28v25m16-36v29M48 4v28"/>
+  </g>
+  <path fill="#64e4ba" d="M14.4 33.6h9.6v9.6h-9.6zm25.6-18.4h9.6v12h-9.6z"/>
+  <path fill="#121a17" stroke="#f4f2e9" stroke-width="2.4" d="M28 26.4h8v10.4h-8z"/>
+</svg>
